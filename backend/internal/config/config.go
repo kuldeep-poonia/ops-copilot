@@ -29,10 +29,13 @@ type Config struct {
 // Load reads and strictly validates configuration from the environment.
 // It fails fast if any required setting is missing or invalid.
 func Load() (*Config, error) {
-	portStr := getEnvOrDefault("OPS_COPILOT_PORT", "8080")
+	portStr := os.Getenv("PORT")
+	if portStr == "" {
+		portStr = getEnvOrDefault("OPS_COPILOT_PORT", "8080")
+	}
 	port, err := strconv.Atoi(portStr)
 	if err != nil || port < 1 || port > 65535 {
-		return nil, fmt.Errorf("invalid OPS_COPILOT_PORT %q: must be a valid port between 1 and 65535", portStr)
+		return nil, fmt.Errorf("invalid port %q: must be a valid port between 1 and 65535", portStr)
 	}
 
 	env := strings.ToLower(getEnvOrDefault("OPS_COPILOT_ENV", "development"))
