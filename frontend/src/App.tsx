@@ -20,6 +20,7 @@ import { AlertsPanel } from './components/alerts-panel';
 import { AuditPanel } from './components/audit-panel';
 import { AgentPlayground } from './components/agent-playground';
 import { ConfirmDialog } from './components/confirm-dialog';
+import { AICopilot } from './components/ai-copilot';
 
 export function App() {
   const [services, setServices] = useState<Service[]>([]);
@@ -430,6 +431,9 @@ export function App() {
           onReject={pendingConfirmation.onReject}
         />
       )}
+
+      {/* Interactive In-App WebMCP AI Copilot Agent Drawer */}
+      <AICopilot onActionTriggered={refreshData} />
     </div>
   );
 }
