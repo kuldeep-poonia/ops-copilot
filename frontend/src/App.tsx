@@ -1,12 +1,13 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
-  Activity,
   AlertTriangle,
   Bot,
   RefreshCw,
   Server,
   Shield,
-  Flame,
+  CheckCircle2,
+  AlertCircle,
+  Zap,
 } from 'lucide-react';
 import type { Service, ServiceHealth, Alert, AuditEntry } from './types';
 import { api } from './services/api';
@@ -57,7 +58,6 @@ export function App() {
       const servicesList = await api.listServices();
       setServices(servicesList);
 
-      // Fetch health for each service concurrently
       const healthPromises = servicesList.map(async (s: Service) => {
         try {
           const h = await api.getServiceHealth(s.id);
@@ -218,46 +218,80 @@ export function App() {
   const handleInjectChaos = async (port: number) => {
     try {
       await fetch(`http://127.0.0.1:${port}/chaos/spike`, { method: 'POST' });
-      showNotification('success', `Injected CPU spike chaos on port ${port}`);
+      showNotification('success', `Injected CPU load spike on port ${port}`);
       setTimeout(refreshData, 1000);
     } catch {
-      showNotification('error', `Could not reach service on port ${port}`);
+      showNotification('error', `Could not reach mock service on port ${port}`);
     }
   };
 
-  const firingAlertsCount = alerts.filter((a: Alert) => a.status === 'firing').length;
+  const firingAlerts = alerts.filter((a: Alert) => a.status === 'firing');
+  const degradedServices = services.filter((s: Service) => {
+    const h = healthMap[s.id];
+    return h?.status === 'degraded' || h?.status === 'down' || h?.status === 'unhealthy';
+  });
+
+  const isAllHealthy = degradedServices.length === 0 && firingAlerts.length === 0;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 selection:bg-purple-500 selection:text-white pb-16">
-      {/* Top Gradient Ribbon */}
-      <div className="h-1 bg-gradient-to-r from-purple-500 via-indigo-500 to-amber-500" />
+    <div className="min-h-screen bg-white text-[#1D1D1F] pb-16">
+      {/* 2-Second Hero Status Banner */}
+      <div
+        className={`border-b transition-colors px-4 py-2.5 text-xs font-semibold flex items-center justify-between gap-4 ${
+          isAllHealthy
+            ? 'bg-[#EAF9EE] border-[#B6E8C2] text-[#248A3D]'
+            : 'bg-[#FFF6E8] border-[#FFE1B0] text-[#B26B00]'
+        }`}
+      >
+        <div className="max-w-7xl mx-auto w-full flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {isAllHealthy ? (
+              <>
+                <CheckCircle2 className="w-4 h-4 text-[#34C759]" />
+                <span>All systems operational — {services.length} services healthy, 0 active alerts</span>
+              </>
+            ) : (
+              <>
+                <AlertCircle className="w-4 h-4 text-[#FF9F0A]" />
+                <span>
+                  {degradedServices.length > 0
+                    ? `${degradedServices.length} service requires attention: ${degradedServices.map((s) => s.name).join(', ')}`
+                    : `${firingAlerts.length} active incident alert firing`}
+                </span>
+              </>
+            )}
+          </div>
+
+          <span className="text-[11px] font-normal text-[#6E6E73] hidden sm:inline">
+            Live telemetry auto-polling active
+          </span>
+        </div>
+      </div>
 
       {/* Main Header */}
-      <header className="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-lg sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
+      <header className="border-b border-[#D2D2D7] bg-white sticky top-0 z-30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-gradient-to-br from-purple-600 to-indigo-600 shadow-lg shadow-purple-500/20 text-white">
-              <Activity className="w-5 h-5" />
-            </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-lg font-black tracking-tight text-white">Ops Co-pilot</h1>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                <h1 className="text-xl font-bold tracking-tight text-[#1D1D1F]">Ops Co-pilot</h1>
+                <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#EBF4FF] text-[#0071E3] border border-[#BCD9FF]">
                   WebMCP Active
                 </span>
               </div>
-              <p className="text-xs text-slate-400">Agent-Friendly Observability & Human Guardrails</p>
+              <p className="text-xs text-[#6E6E73]">Infrastructure Observability & Agent Guardrails</p>
             </div>
           </div>
 
-          {/* Navigation Tabs */}
-          <div className="flex items-center gap-1.5 bg-slate-950/80 p-1.5 rounded-xl border border-slate-800 text-xs">
+          {/* Navigation Segmented Control */}
+          <div className="flex items-center gap-1 bg-[#F5F5F7] p-1 rounded-xl border border-[#E5E5EA] text-xs">
             <button
+              type="button"
               onClick={() => setActiveTab('overview')}
-              className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'overview'
-                  ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-white text-[#1D1D1F] font-semibold shadow-xs border border-[#D2D2D7]'
+                  : 'text-[#6E6E73] hover:text-[#1D1D1F]'
               }`}
             >
               <Server className="w-3.5 h-3.5" />
@@ -265,43 +299,46 @@ export function App() {
             </button>
 
             <button
+              type="button"
               onClick={() => setActiveTab('alerts')}
-              className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 cursor-pointer relative ${
+              className={`px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'alerts'
-                  ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-white text-[#1D1D1F] font-semibold shadow-xs border border-[#D2D2D7]'
+                  : 'text-[#6E6E73] hover:text-[#1D1D1F]'
               }`}
             >
-              <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+              <AlertTriangle className="w-3.5 h-3.5 text-[#FF9F0A]" />
               Alerts
-              {firingAlertsCount > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-rose-500 text-white font-bold animate-pulse">
-                  {firingAlertsCount}
+              {firingAlerts.length > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-[#FF3B30] text-white font-bold">
+                  {firingAlerts.length}
                 </span>
               )}
             </button>
 
             <button
+              type="button"
               onClick={() => setActiveTab('audit')}
-              className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'audit'
-                  ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-white text-[#1D1D1F] font-semibold shadow-xs border border-[#D2D2D7]'
+                  : 'text-[#6E6E73] hover:text-[#1D1D1F]'
               }`}
             >
-              <Shield className="w-3.5 h-3.5 text-cyan-400" />
+              <Shield className="w-3.5 h-3.5 text-[#6E6E73]" />
               Audit Log ({auditTotal})
             </button>
 
             <button
+              type="button"
               onClick={() => setActiveTab('agent-console')}
-              className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'agent-console'
-                  ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-white text-[#1D1D1F] font-semibold shadow-xs border border-[#D2D2D7]'
+                  : 'text-[#6E6E73] hover:text-[#1D1D1F]'
               }`}
             >
-              <Bot className="w-3.5 h-3.5 text-purple-400" />
+              <Bot className="w-3.5 h-3.5 text-[#0071E3]" />
               WebMCP Agent Console
             </button>
           </div>
@@ -309,12 +346,13 @@ export function App() {
           {/* Refresh Action */}
           <div className="flex items-center gap-2">
             <button
+              type="button"
               onClick={refreshData}
               disabled={isRefreshing}
-              className="p-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white transition-all cursor-pointer"
+              className="p-2 rounded-xl bg-[#F5F5F7] hover:bg-[#E5E5EA] border border-[#D2D2D7] text-[#1D1D1F] transition-colors cursor-pointer"
               title="Refresh telemetry"
             >
-              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-purple-400' : ''}`} />
+              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-[#0071E3]' : 'text-[#6E6E73]'}`} />
             </button>
           </div>
         </div>
@@ -324,45 +362,51 @@ export function App() {
       {notification && (
         <div className="fixed bottom-5 right-5 z-50 animate-fade-in">
           <div
-            className={`px-4 py-3 rounded-xl border text-xs font-semibold shadow-2xl flex items-center gap-2 ${
+            className={`px-4 py-3 rounded-2xl border text-xs font-semibold shadow-lg flex items-center gap-2 bg-white ${
               notification.type === 'success'
-                ? 'bg-slate-900 border-emerald-500/50 text-emerald-300'
-                : 'bg-slate-900 border-rose-500/50 text-rose-300'
+                ? 'border-[#34C759] text-[#248A3D]'
+                : 'border-[#FF3B30] text-[#FF3B30]'
             }`}
           >
-            <span className={`w-2 h-2 rounded-full ${notification.type === 'success' ? 'bg-emerald-400' : 'bg-rose-400'}`} />
+            <span
+              className={`w-2 h-2 rounded-full ${
+                notification.type === 'success' ? 'bg-[#34C759]' : 'bg-[#FF3B30]'
+              }`}
+            />
             {notification.message}
           </div>
         </div>
       )}
 
-      {/* Main Content Body */}
+      {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        {/* Chaos Injection Quick Bar */}
-        <div className="bg-slate-900/40 p-3 rounded-xl border border-slate-800/80 flex flex-wrap items-center justify-between gap-2 text-xs">
-          <div className="flex items-center gap-2 text-slate-400">
-            <Flame className="w-4 h-4 text-amber-500" />
-            <span className="font-semibold text-slate-300">Live Chaos Injection:</span>
-            <span>Trigger real-world load spikes to test alert engine and agent remediation</span>
+        {/* Testing Chaos Bar */}
+        <div className="bg-[#F5F5F7] p-3.5 rounded-2xl border border-[#E5E5EA] flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2 text-[#6E6E73]">
+            <Zap className="w-4 h-4 text-[#FF9F0A]" />
+            <span className="font-semibold text-[#1D1D1F]">Chaos Injection:</span>
+            <span>Simulate telemetry spikes to evaluate alert detection and AI agent remediation</span>
           </div>
 
           <div className="flex items-center gap-2">
             <button
+              type="button"
               onClick={() => handleInjectChaos(8081)}
-              className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 cursor-pointer"
+              className="px-3 py-1.5 rounded-xl bg-white hover:bg-[#E5E5EA] text-[#1D1D1F] border border-[#D2D2D7] font-medium transition-colors cursor-pointer"
             >
               Spike Payment API (Port 8081)
             </button>
             <button
+              type="button"
               onClick={() => handleInjectChaos(8082)}
-              className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 cursor-pointer"
+              className="px-3 py-1.5 rounded-xl bg-white hover:bg-[#E5E5EA] text-[#1D1D1F] border border-[#D2D2D7] font-medium transition-colors cursor-pointer"
             >
               Spike Auth IAM (Port 8082)
             </button>
           </div>
         </div>
 
-        {/* Tab 1: Overview (Services Cards) */}
+        {/* Tab 1: Overview */}
         {activeTab === 'overview' && (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -410,7 +454,7 @@ export function App() {
           />
         )}
 
-        {/* Tab 4: WebMCP Agent Test Console */}
+        {/* Tab 4: WebMCP Agent Console */}
         {activeTab === 'agent-console' && (
           <AgentPlayground onActionCompleted={refreshData} />
         )}
