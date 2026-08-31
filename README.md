@@ -10,6 +10,12 @@
 
 ---
 
+## Product Demo
+
+![Ops Co-pilot Live Product Demo](assets/ops-copilot-demo.gif)
+
+---
+
 ## What Problem Does It Solve?
 
 When AI agents are given operational control over infrastructure, traditional dashboards either lock them out completely or give them unrestricted write access that risks catastrophic production outages. 
