@@ -7,7 +7,7 @@ import {
   Server,
   Layers,
   AlertCircle,
-  Zap,
+  Sliders,
 } from 'lucide-react';
 import type { Service, ServiceHealth } from '../types';
 
@@ -16,7 +16,6 @@ interface ServiceCardProps {
   health?: ServiceHealth;
   onRestart: (serviceId: string) => void;
   onScale: (serviceId: string, replicas: number) => void;
-  onChaos?: (port: number) => void;
 }
 
 export const ServiceCard: React.FC<ServiceCardProps> = ({
@@ -32,65 +31,106 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({
   const isHealthy = status === 'healthy';
   const isDegraded = status === 'degraded';
   const isRestarting = status === 'restarting';
+  const isDown = status === 'down' || status === 'unhealthy';
 
-  const statusColors = {
-    healthy: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 ring-emerald-500/20',
-    degraded: 'bg-amber-500/10 text-amber-400 border-amber-500/30 ring-amber-500/20',
-    unhealthy: 'bg-rose-500/10 text-rose-400 border-rose-500/30 ring-rose-500/20',
-    down: 'bg-rose-950/60 text-rose-300 border-rose-700/50 ring-rose-600/20',
-    restarting: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30 ring-cyan-500/20',
+  const statusConfig = {
+    healthy: {
+      text: 'Healthy',
+      color: '#34C759',
+      bg: '#EAF9EE',
+      border: '#B6E8C2',
+      dot: 'bg-[#34C759]',
+    },
+    degraded: {
+      text: 'Needs Attention',
+      color: '#FF9F0A',
+      bg: '#FFF6E8',
+      border: '#FFE1B0',
+      dot: 'bg-[#FF9F0A]',
+    },
+    restarting: {
+      text: 'Restarting',
+      color: '#0071E3',
+      bg: '#EBF4FF',
+      border: '#BCD9FF',
+      dot: 'bg-[#0071E3] animate-spin',
+    },
+    down: {
+      text: 'Offline',
+      color: '#FF3B30',
+      bg: '#FFF0EF',
+      border: '#FFC7C4',
+      dot: 'bg-[#FF3B30]',
+    },
+    unhealthy: {
+      text: 'Critical',
+      color: '#FF3B30',
+      bg: '#FFF0EF',
+      border: '#FFC7C4',
+      dot: 'bg-[#FF3B30]',
+    },
   };
 
-  const statusBadge = statusColors[status as keyof typeof statusColors] || statusColors.healthy;
+  const currentStatus = statusConfig[status as keyof typeof statusConfig] || statusConfig.healthy;
 
   return (
-    <div className="bg-slate-900/90 border border-slate-800 hover:border-slate-700/80 rounded-2xl p-5 shadow-xl transition-all duration-300 backdrop-blur-md relative overflow-hidden group">
-      {/* Subtle Glow Backdrop */}
-      <div
-        className={`absolute -right-16 -top-16 w-32 h-32 rounded-full blur-3xl opacity-20 transition-all ${
-          isHealthy ? 'bg-emerald-500' : isDegraded ? 'bg-amber-500' : isRestarting ? 'bg-cyan-500' : 'bg-rose-500'
-        }`}
-      />
-
-      {/* Header */}
-      <div className="flex items-start justify-between gap-3 mb-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="p-2 rounded-xl bg-slate-800/80 border border-slate-700 text-indigo-400">
-              <Server className="w-4 h-4" />
-            </span>
-            <div>
-              <h3 className="text-base font-bold text-white tracking-tight">{service.name}</h3>
-              <p className="text-xs text-slate-400 font-mono">{service.id}</p>
-            </div>
+    <div
+      className={`rounded-2xl border transition-all p-5 bg-white ${
+        isDegraded
+          ? 'border-[#FF9F0A] shadow-sm'
+          : isDown
+          ? 'border-[#FF3B30] shadow-sm'
+          : 'border-[#D2D2D7]'
+      } relative`}
+    >
+      {/* Header: Service Name & Status Badge */}
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div className="flex items-center gap-2.5">
+          <div className="p-2 rounded-xl bg-[#F5F5F7] border border-[#E5E5EA] text-[#1D1D1F]">
+            <Server className="w-4 h-4" />
+          </div>
+          <div>
+            <h3 className="text-base font-semibold text-[#1D1D1F] leading-tight">{service.name}</h3>
+            <span className="text-xs text-[#6E6E73] font-mono">{service.id}</span>
           </div>
         </div>
 
-        {/* Status Pill */}
-        <div className={`px-2.5 py-1 rounded-full border text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5 shadow-sm ${statusBadge}`}>
-          <span className={`w-2 h-2 rounded-full ${isRestarting ? 'bg-cyan-400 animate-spin' : isHealthy ? 'bg-emerald-400 animate-pulse' : isDegraded ? 'bg-amber-400' : 'bg-rose-400'}`} />
-          {status}
+        {/* Hero Status Badge */}
+        <div
+          className="px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 border shrink-0"
+          style={{
+            backgroundColor: currentStatus.bg,
+            color: currentStatus.color,
+            borderColor: currentStatus.border,
+          }}
+        >
+          <span className={`w-2 h-2 rounded-full ${currentStatus.dot}`} />
+          <span>{currentStatus.text}</span>
         </div>
       </div>
 
-      <p className="text-xs text-slate-400 mb-5 line-clamp-2">{service.description}</p>
+      <p className="text-xs text-[#6E6E73] mb-4 line-clamp-2">{service.description}</p>
 
-      {/* Metrics Grid */}
-      <div className="grid grid-cols-2 gap-3 mb-5">
+      {/* Primary Metrics Grid */}
+      <div className="grid grid-cols-2 gap-2.5 mb-4">
         {/* CPU */}
-        <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800/80">
-          <div className="flex items-center justify-between text-xs text-slate-400 mb-1.5">
+        <div className="bg-[#F5F5F7] p-3 rounded-xl border border-[#E5E5EA]">
+          <div className="flex items-center justify-between text-xs text-[#6E6E73] mb-1">
             <span className="flex items-center gap-1">
-              <Cpu className="w-3.5 h-3.5 text-indigo-400" /> CPU Load
+              <Cpu className="w-3.5 h-3.5" /> CPU
             </span>
-            <span className="font-mono font-semibold text-slate-200">
+            <span className="font-medium text-[#1D1D1F]">
               {health?.cpuUsage !== undefined ? `${health.cpuUsage.toFixed(1)}%` : '---'}
             </span>
           </div>
-          <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+          <div className="w-full bg-[#E5E5EA] h-1.5 rounded-full overflow-hidden">
             <div
-              className={`h-full transition-all duration-500 rounded-full ${
-                (health?.cpuUsage || 0) > 85 ? 'bg-rose-500' : (health?.cpuUsage || 0) > 70 ? 'bg-amber-500' : 'bg-indigo-500'
+              className={`h-full rounded-full transition-all duration-300 ${
+                (health?.cpuUsage || 0) > 85
+                  ? 'bg-[#FF3B30]'
+                  : (health?.cpuUsage || 0) > 70
+                  ? 'bg-[#FF9F0A]'
+                  : 'bg-[#34C759]'
               }`}
               style={{ width: `${Math.min(100, health?.cpuUsage || 0)}%` }}
             />
@@ -98,19 +138,23 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({
         </div>
 
         {/* Memory */}
-        <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800/80">
-          <div className="flex items-center justify-between text-xs text-slate-400 mb-1.5">
+        <div className="bg-[#F5F5F7] p-3 rounded-xl border border-[#E5E5EA]">
+          <div className="flex items-center justify-between text-xs text-[#6E6E73] mb-1">
             <span className="flex items-center gap-1">
-              <Database className="w-3.5 h-3.5 text-cyan-400" /> Memory
+              <Database className="w-3.5 h-3.5" /> Memory
             </span>
-            <span className="font-mono font-semibold text-slate-200">
+            <span className="font-medium text-[#1D1D1F]">
               {health?.memoryUsage !== undefined ? `${health.memoryUsage.toFixed(1)}%` : '---'}
             </span>
           </div>
-          <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+          <div className="w-full bg-[#E5E5EA] h-1.5 rounded-full overflow-hidden">
             <div
-              className={`h-full transition-all duration-500 rounded-full ${
-                (health?.memoryUsage || 0) > 85 ? 'bg-rose-500' : (health?.memoryUsage || 0) > 75 ? 'bg-amber-500' : 'bg-cyan-500'
+              className={`h-full rounded-full transition-all duration-300 ${
+                (health?.memoryUsage || 0) > 85
+                  ? 'bg-[#FF3B30]'
+                  : (health?.memoryUsage || 0) > 75
+                  ? 'bg-[#FF9F0A]'
+                  : 'bg-[#34C759]'
               }`}
               style={{ width: `${Math.min(100, health?.memoryUsage || 0)}%` }}
             />
@@ -118,28 +162,32 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({
         </div>
 
         {/* Error Rate */}
-        <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800/80">
-          <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
+        <div className="bg-[#F5F5F7] p-3 rounded-xl border border-[#E5E5EA]">
+          <div className="flex items-center justify-between text-xs text-[#6E6E73]">
             <span className="flex items-center gap-1">
-              <Activity className="w-3.5 h-3.5 text-rose-400" /> Error Rate
+              <Activity className="w-3.5 h-3.5" /> Error Rate
             </span>
-            <span className={`font-mono font-semibold ${(health?.errorRate || 0) > 2 ? 'text-rose-400' : 'text-slate-200'}`}>
+            <span
+              className={`font-medium ${
+                (health?.errorRate || 0) > 2 ? 'text-[#FF3B30] font-bold' : 'text-[#1D1D1F]'
+              }`}
+            >
               {health?.errorRate !== undefined ? `${health.errorRate.toFixed(2)}%` : '0.00%'}
             </span>
           </div>
-          <span className="text-[10px] text-slate-500">Uptime: {health?.uptime || 'N/A'}</span>
+          <span className="text-[11px] text-[#6E6E73] mt-1 block">Uptime: {health?.uptime || 'N/A'}</span>
         </div>
 
         {/* Replicas & Alerts */}
-        <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800/80 flex items-center justify-between">
+        <div className="bg-[#F5F5F7] p-3 rounded-xl border border-[#E5E5EA] flex items-center justify-between">
           <div>
-            <div className="flex items-center gap-1 text-xs text-slate-400">
-              <Layers className="w-3.5 h-3.5 text-violet-400" /> Replicas
+            <div className="flex items-center gap-1 text-xs text-[#6E6E73]">
+              <Layers className="w-3.5 h-3.5" /> Replicas
             </div>
-            <span className="font-mono font-bold text-sm text-slate-100">{service.replicas} active</span>
+            <span className="font-semibold text-xs text-[#1D1D1F]">{service.replicas} active</span>
           </div>
           {(health?.activeAlerts || 0) > 0 && (
-            <div className="flex items-center gap-1 text-[11px] font-semibold text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20">
+            <div className="flex items-center gap-1 text-[11px] font-semibold text-[#FF3B30] bg-[#FFF0EF] px-2 py-0.5 rounded-full border border-[#FFC7C4]">
               <AlertCircle className="w-3 h-3" />
               {health?.activeAlerts} alert{(health?.activeAlerts || 0) > 1 ? 's' : ''}
             </div>
@@ -147,47 +195,51 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({
         </div>
       </div>
 
-      {/* Control Actions */}
-      <div className="flex items-center justify-between pt-3 border-t border-slate-800/80 gap-2">
+      {/* Action Controls */}
+      <div className="flex items-center gap-2 pt-3 border-t border-[#E5E5EA]">
         <button
+          type="button"
           onClick={() => onRestart(service.id)}
           disabled={isRestarting}
-          className="flex-1 px-3 py-2 rounded-xl bg-slate-800/90 hover:bg-slate-800 text-slate-200 hover:text-white text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700/80 transition-all cursor-pointer disabled:opacity-50 hover:border-amber-500/40"
+          className="flex-1 px-3 py-2 rounded-xl bg-[#F5F5F7] hover:bg-[#E5E5EA] text-[#1D1D1F] text-xs font-medium flex items-center justify-center gap-1.5 border border-[#D2D2D7] transition-colors cursor-pointer disabled:opacity-50"
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${isRestarting ? 'animate-spin text-cyan-400' : 'text-amber-400'}`} />
-          Restart Service
+          <RefreshCw className={`w-3.5 h-3.5 ${isRestarting ? 'animate-spin text-[#0071E3]' : 'text-[#6E6E73]'}`} />
+          Restart
         </button>
 
         <button
+          type="button"
           onClick={() => setShowScaleModal(true)}
-          className="flex-1 px-3 py-2 rounded-xl bg-slate-800/90 hover:bg-slate-800 text-slate-200 hover:text-white text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700/80 transition-all cursor-pointer hover:border-indigo-500/40"
+          className="flex-1 px-3 py-2 rounded-xl bg-[#F5F5F7] hover:bg-[#E5E5EA] text-[#1D1D1F] text-xs font-medium flex items-center justify-center gap-1.5 border border-[#D2D2D7] transition-colors cursor-pointer"
         >
-          <Zap className="w-3.5 h-3.5 text-indigo-400" />
+          <Sliders className="w-3.5 h-3.5 text-[#6E6E73]" />
           Scale ({service.replicas})
         </button>
       </div>
 
-      {/* Quick Scale Modal */}
+      {/* Inline Scale Controller */}
       {showScaleModal && (
-        <div className="absolute inset-0 bg-slate-950/95 backdrop-blur-sm z-20 p-4 rounded-2xl flex flex-col justify-center animate-fade-in border border-indigo-500/30">
-          <h4 className="text-xs font-bold text-white mb-2">Adjust Replicas for {service.name}</h4>
-          <p className="text-[11px] text-slate-400 mb-3">
-            Allowed limits: {service.minReplicas} to {service.maxReplicas} instances
+        <div className="absolute inset-0 bg-white/98 z-10 p-5 rounded-2xl flex flex-col justify-center border border-[#D2D2D7] animate-fade-in">
+          <h4 className="text-xs font-bold text-[#1D1D1F] mb-1">Scale {service.name}</h4>
+          <p className="text-[11px] text-[#6E6E73] mb-4">
+            Range: {service.minReplicas} to {service.maxReplicas} instances
           </p>
 
-          <div className="flex items-center justify-center gap-3 mb-4">
+          <div className="flex items-center justify-center gap-3 mb-5">
             <button
+              type="button"
               onClick={() => setScaleValue(Math.max(service.minReplicas, scaleValue - 1))}
-              className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 text-white font-bold hover:bg-slate-700 cursor-pointer"
+              className="w-8 h-8 rounded-lg bg-[#F5F5F7] border border-[#D2D2D7] text-[#1D1D1F] font-bold hover:bg-[#E5E5EA] cursor-pointer"
             >
               -
             </button>
-            <span className="text-lg font-mono font-bold text-indigo-400 px-4 py-1 bg-slate-900 rounded-lg border border-slate-800">
+            <span className="text-base font-semibold text-[#1D1D1F] px-4 py-1 bg-[#F5F5F7] rounded-lg border border-[#D2D2D7] min-w-[50px] text-center">
               {scaleValue}
             </span>
             <button
+              type="button"
               onClick={() => setScaleValue(Math.min(service.maxReplicas, scaleValue + 1))}
-              className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 text-white font-bold hover:bg-slate-700 cursor-pointer"
+              className="w-8 h-8 rounded-lg bg-[#F5F5F7] border border-[#D2D2D7] text-[#1D1D1F] font-bold hover:bg-[#E5E5EA] cursor-pointer"
             >
               +
             </button>
@@ -195,19 +247,21 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({
 
           <div className="flex gap-2">
             <button
+              type="button"
               onClick={() => setShowScaleModal(false)}
-              className="flex-1 py-1.5 rounded-lg border border-slate-700 text-xs text-slate-300 hover:bg-slate-800 cursor-pointer"
+              className="flex-1 py-2 rounded-xl border border-[#D2D2D7] text-xs font-medium text-[#1D1D1F] bg-[#F5F5F7] hover:bg-[#E5E5EA] cursor-pointer"
             >
               Cancel
             </button>
             <button
+              type="button"
               onClick={() => {
                 setShowScaleModal(false);
                 onScale(service.id, scaleValue);
               }}
-              className="flex-1 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white cursor-pointer"
+              className="flex-1 py-2 rounded-xl bg-[#1D1D1F] hover:bg-[#3A3A3C] text-xs font-semibold text-white cursor-pointer"
             >
-              Confirm Scale
+              Apply Scale
             </button>
           </div>
         </div>
