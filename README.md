@@ -376,10 +376,10 @@ When an AI agent navigates to the live dashboard URL ([https://ops-copilot-two.v
 
 | Scenario | Sample User Prompt | WebMCP Tool Invoked | Expected Behavior |
 |---|---|---|---|
-| **Health Check** | *"Is everything healthy with my Social Publishing MCP Server?"* | `get_service_health` | Agent fetches live metrics from backend and summarizes status, error rates, and CPU/memory usage. |
+| **Health Check** | *"Is everything healthy with my monitored production services?"* | `get_service_health` | Agent fetches live metrics from backend and summarizes status, error rates, and CPU/memory usage. |
 | **Alert Triage** | *"Show me all firing alerts and acknowledge any CPU warnings."* | `list_active_alerts` & `acknowledge_alert` | Agent lists incidents, acknowledges the alert with reason, and logs diagnostic findings. |
 | **Incident Investigation** | *"Add a note to the incident that we inspected logs and database queries are fast."* | `add_incident_note` | Agent appends a timestamped note to the alert timeline. |
-| **High-Risk Remediation** | *"Restart the Social Publishing MCP Server to clear high memory consumption."* | `restart_service` | Tool call triggers `HTTP 428` challenge; agent asks human to click "Approve" on the dashboard; once approved, agent executes restart via Render API. |
+| **High-Risk Remediation** | *"Restart the production service to clear high memory consumption."* | `restart_service` | Tool call triggers `HTTP 428` challenge; agent asks human to click "Approve" on the dashboard; once approved, agent executes restart via Render API. |
 | **Capacity Scaling** | *"Scale the service to 3 replicas for upcoming flash traffic."* | `scale_service` | Triggers human confirmation challenge; upon human sign-off, scales live instance count. |
 
 ---

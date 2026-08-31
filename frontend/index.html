@@ -5,70 +5,11 @@
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230071e3' stroke-width='2'><path d='M22 12h-4l-3 9L9 3l-3 9H2'/></svg>" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Ops Co-pilot: AI-friendly observability & incident remediation dashboard exposing in-browser WebMCP tools on document.modelContext with cryptographic human-in-the-loop guardrails." />
-    <meta property="og:title" content="Ops Co-pilot — WebMCP Infrastructure Dashboard" />
-    <meta property="og:description" content="WebMCP-enabled infrastructure dashboard with 7 in-browser tools on document.modelContext for safe AI agent operations." />
     <title>Ops Co-pilot — WebMCP Infrastructure Dashboard</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    
-    <!-- Static WebMCP Manifest for non-JS crawlers and static LLMs -->
-    <script type="application/json" id="webmcp-tools-manifest">
-    {
-      "standard": "WebMCP/1.0",
-      "registeredOn": ["document.modelContext", "window.modelContext"],
-      "monitoredService": {
-        "name": "Social Publishing MCP Server",
-        "url": "https://social-mcp.duckdns.org",
-        "status": "healthy"
-      },
-      "tools": [
-        {
-          "name": "get_service_health",
-          "description": "Fetch real-time health metrics (CPU usage, memory pressure, error rate, uptime, and status) for a specific registered service.",
-          "tier": "read-only",
-          "inputSchema": { "type": "object", "properties": { "serviceId": { "type": "string" } }, "required": ["serviceId"] }
-        },
-        {
-          "name": "list_active_alerts",
-          "description": "List current firing or acknowledged infrastructure and service alerts with severity levels, thresholds, and triage notes.",
-          "tier": "read-only",
-          "inputSchema": { "type": "object", "properties": { "serviceId": { "type": "string" }, "status": { "type": "string" } } }
-        },
-        {
-          "name": "get_audit_log",
-          "description": "Retrieve the immutable audit trail of operational actions taken by AI agents and human operators.",
-          "tier": "read-only",
-          "inputSchema": { "type": "object", "properties": { "serviceId": { "type": "string" }, "limit": { "type": "number" } } }
-        },
-        {
-          "name": "acknowledge_alert",
-          "description": "Acknowledge an active alert to signal that triage is underway.",
-          "tier": "low-risk",
-          "inputSchema": { "type": "object", "properties": { "alertId": { "type": "string" }, "reason": { "type": "string" } }, "required": ["alertId"] }
-        },
-        {
-          "name": "add_incident_note",
-          "description": "Append an operational note or diagnostic hypothesis to an ongoing alert.",
-          "tier": "low-risk",
-          "inputSchema": { "type": "object", "properties": { "alertId": { "type": "string" }, "content": { "type": "string" } }, "required": ["alertId", "content"] }
-        },
-        {
-          "name": "restart_service",
-          "description": "High-risk action: Initiates a graceful restart of a monitored service with mandatory human confirmation.",
-          "tier": "high-risk",
-          "inputSchema": { "type": "object", "properties": { "serviceId": { "type": "string" }, "reason": { "type": "string" }, "confirmationToken": { "type": "string" } }, "required": ["serviceId"] }
-        },
-        {
-          "name": "scale_service",
-          "description": "High-risk action: Adjusts the replica count for a service with mandatory human confirmation.",
-          "tier": "high-risk",
-          "inputSchema": { "type": "object", "properties": { "serviceId": { "type": "string" }, "replicas": { "type": "number" }, "reason": { "type": "string" }, "confirmationToken": { "type": "string" } }, "required": ["serviceId", "replicas"] }
-        }
-      ]
-    }
-    </script>
   </head>
   <body class="bg-white text-[#1D1D1F] antialiased selection:bg-[#0071E3] selection:text-white">
     <div id="root"></div>
