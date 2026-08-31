@@ -2,6 +2,8 @@
 
 > An AI-friendly observability and incident remediation dashboard that allows autonomous web agents to inspect infrastructure telemetry and execute operational actions with cryptographic human-in-the-loop guardrails.
 
+Ops Co-pilot doesn't add its own AI — it gives any AI agent already in your browser a safe, structured way to check on and operate your real infrastructure, with a human always in control of anything risky.
+
 ---
 
 ## Live Demo
@@ -23,6 +25,51 @@ When AI agents are given operational control over infrastructure, traditional da
 **Ops Co-pilot bridges this gap** by exposing standardized, in-browser WebMCP tools with structural safety tiering:
 1. **Read-Only & Low-Risk Tools:** Agents can freely inspect telemetry, list firing alerts, acknowledge incidents, and post diagnostic notes.
 2. **High-Risk Guardrails:** Disruptive actions (restarting services, scaling replicas) are intercepted by the backend. The action is paused until an on-screen human operator reviews the technical rationale and approves a single-use, SHA-256 bound cryptographic confirmation token with a 60-second TTL.
+
+---
+
+## How It Works
+
+Here is how a real end-to-end interaction works when someone operates their infrastructure with an AI agent in the browser:
+
+1. **The dashboard registers its tools.** When someone opens the Ops Co-pilot dashboard in an agent-capable browser (ChatGPT's in-app browser, or Chrome with the WebMCP flag enabled), the page registers its WebMCP tools via `document.modelContext.registerTool(...)`. From this point, any AI agent operating in that browser session can see exactly what actions are available — not by reading the page visually, but by reading this structured tool list.
+
+2. **The person asks the agent something in plain language.** For example: *"Is everything okay with my service?"* or *"Restart the payment service, it's throwing errors."*
+
+3. **The agent picks the right tool and calls it.** Based on each tool's `name` and `description`, the agent decides which one fits the request — e.g. `get_service_health` for a status question — and calls it with the required parameters. This reasoning is done entirely by the agent's own model; Ops Co-pilot does not do any of the natural-language understanding itself.
+
+4. **The tool call reaches the real backend.** The tool's `execute` function calls the Go backend's REST API, which in turn queries the real monitored service (its actual `/health` and `/metrics` endpoints) for genuinely current data — never simulated or cached-as-if-live data.
+
+5. **Read and low-risk actions execute immediately and return real results**, which the agent then explains to the person in natural language.
+
+6. **High-risk actions (restart, scale) never execute on the first call.** The backend responds with `428 Precondition Required` and a description of the proposed action. The dashboard shows an on-screen confirmation dialog to the person — not the agent — describing exactly what is about to happen and why. Only if a person explicitly approves does the backend issue a single-use, time-limited confirmation token and actually execute the action.
+
+7. **Every action, agent-initiated or human-initiated, is written to an audit log** visible on the dashboard, so there's always a clear record of who did what.
+
+### Interaction Flow
+
+```mermaid
+flowchart TD
+    A["👤 Person asks agent a question in plain language"] --> B["🤖 Agent picks the right registered WebMCP tool"]
+    B --> C["⚡ Tool calls Go Backend REST API"]
+    C --> D["📊 Backend queries real monitored service (/health, /metrics)"]
+    D --> E{"Action Risk Assessment"}
+    
+    E -->|Read / Low-Risk| F["✅ Executes immediately & returns real live data"]
+    E -->|High-Risk: Restart / Scale| G["🛡️ Backend returns HTTP 428 Precondition Required"]
+    
+    G --> H["🖥️ Dashboard displays Human Confirmation Dialog"]
+    H --> I{"👤 Human Decision"}
+    
+    I -->|Approved| J["🔐 Backend issues single-use token (60s TTL) & executes mutation"]
+    I -->|Declined / Timed out| K["❌ Action safely cancelled; infrastructure untouched"]
+    
+    F --> L["🤖 Agent receives result & explains to person in plain English"]
+    J --> L
+    K --> L
+    
+    L --> M["📜 Action recorded to Immutable Audit Trail"]
+```
 
 ---
 
