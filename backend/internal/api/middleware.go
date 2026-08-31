@@ -2,6 +2,7 @@ package api
 
 import (
 	"log"
+	"net"
 	"net/http"
 	"strings"
 	"sync"
@@ -82,21 +83,39 @@ func (rl *RateLimiter) Allow(identifier string) bool {
 	return false
 }
 
-// Middleware creates standard HTTP middleware chains.
-func CORSMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, X-Session-ID")
-		w.Header().Set("Access-Control-Max-Age", "86400")
+// CORSMiddleware restricts cross-origin access strictly to verified frontend origins.
+func CORSMiddleware(allowedOrigins []string) func(http.Handler) http.Handler {
+	allowedMap := make(map[string]bool)
+	for _, o := range allowedOrigins {
+		allowedMap[strings.ToLower(strings.TrimSpace(o))] = true
+	}
 
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			origin := r.Header.Get("Origin")
+			isAllowed := origin != "" && allowedMap[strings.ToLower(origin)]
 
-		next.ServeHTTP(w, r)
-	})
+			if isAllowed {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+				w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, X-Session-ID")
+				w.Header().Set("Access-Control-Max-Age", "86400")
+				w.Header().Set("Vary", "Origin")
+			}
+
+			if r.Method == http.MethodOptions {
+				if isAllowed || origin == "" {
+					w.WriteHeader(http.StatusOK)
+				} else {
+					w.WriteHeader(http.StatusForbidden)
+					_, _ = w.Write([]byte(`{"error":"origin not allowed"}`))
+				}
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 // RecoveryMiddleware prevents panics from taking down the HTTP server process.
@@ -132,6 +151,10 @@ func extractClientIP(r *http.Request) string {
 	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
 		parts := strings.Split(xff, ",")
 		return strings.TrimSpace(parts[0])
+	}
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err == nil {
+		return host
 	}
 	return r.RemoteAddr
 }
