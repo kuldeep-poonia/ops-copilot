@@ -49,6 +49,7 @@ func setupTestServer(t *testing.T) (*Server, *httptest.Server, func()) {
 		RateLimitRPS:   1000,
 		RateLimitBurst: 2000,
 		TokenTTL:       60 * time.Second,
+		AuthSecret:     "test-secret-must-be-at-least-32-chars-long!",
 	}
 
 	handler := NewHandler(reg, metricsAdapter, alertEngine, auditLogger, guard, exec)
@@ -65,6 +66,57 @@ func setupTestServer(t *testing.T) (*Server, *httptest.Server, func()) {
 	return server, ts, cleanup
 }
 
+func TestAPI_AuthenticationMiddleware(t *testing.T) {
+	_, ts, cleanup := setupTestServer(t)
+	defer cleanup()
+
+	client := ts.Client()
+
+	// 1. Health probe should succeed without auth
+	healthResp, err := client.Get(ts.URL + "/api/health")
+	if err != nil {
+		t.Fatalf("failed to call /api/health: %v", err)
+	}
+	defer healthResp.Body.Close()
+	if healthResp.StatusCode != http.StatusOK {
+		t.Errorf("expected 200 for health probe, got %d", healthResp.StatusCode)
+	}
+
+	// 2. Services endpoint without auth header -> must return 401 Unauthorized
+	unauthResp, err := client.Get(ts.URL + "/api/services")
+	if err != nil {
+		t.Fatalf("failed unauthenticated request: %v", err)
+	}
+	defer unauthResp.Body.Close()
+	if unauthResp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("expected 401 Unauthorized without auth header, got %d", unauthResp.StatusCode)
+	}
+
+	// 3. Request with invalid token -> must return 401 Unauthorized
+	badReq, _ := http.NewRequest(http.MethodGet, ts.URL+"/api/services", nil)
+	badReq.Header.Set("Authorization", "Bearer invalid-token-123")
+	badResp, err := client.Do(badReq)
+	if err != nil {
+		t.Fatalf("failed bad token request: %v", err)
+	}
+	defer badResp.Body.Close()
+	if badResp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("expected 401 Unauthorized for bad token, got %d", badResp.StatusCode)
+	}
+
+	// 4. Request with valid token -> must return 200 OK
+	validReq, _ := http.NewRequest(http.MethodGet, ts.URL+"/api/services", nil)
+	validReq.Header.Set("Authorization", "Bearer test-secret-must-be-at-least-32-chars-long!")
+	validResp, err := client.Do(validReq)
+	if err != nil {
+		t.Fatalf("failed valid token request: %v", err)
+	}
+	defer validResp.Body.Close()
+	if validResp.StatusCode != http.StatusOK {
+		t.Errorf("expected 200 OK for valid token, got %d", validResp.StatusCode)
+	}
+}
+
 func TestAPI_500ConcurrentRequests(t *testing.T) {
 	server, _, cleanup := setupTestServer(t)
 	defer cleanup()
@@ -79,6 +131,7 @@ func TestAPI_500ConcurrentRequests(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			req := httptest.NewRequest(http.MethodGet, "/api/services", nil)
+			req.Header.Set("Authorization", "Bearer test-secret-must-be-at-least-32-chars-long!")
 			w := httptest.NewRecorder()
 			server.httpServer.Handler.ServeHTTP(w, req)
 
@@ -111,14 +164,18 @@ func TestAPI_HighRiskConfirmationFlow(t *testing.T) {
 
 	client := ts.Client()
 
-	// Step 1: Initial call to restart_service without token -> must require confirmation
+	// Step 1: Initial call to restart_service without confirmation token -> must require confirmation (HTTP 428)
 	initBody, _ := json.Marshal(models.ActionExecutionRequest{
 		ServiceID:  "payment-service",
 		ActionType: "restart_service",
 		Reason:     "high latency investigation",
 		Initiator:  "agent-ops",
 	})
-	resp1, err := client.Post(ts.URL+"/api/actions/execute", "application/json", bytes.NewReader(initBody))
+	req1, _ := http.NewRequest(http.MethodPost, ts.URL+"/api/actions/execute", bytes.NewReader(initBody))
+	req1.Header.Set("Content-Type", "application/json")
+	req1.Header.Set("Authorization", "Bearer test-secret-must-be-at-least-32-chars-long!")
+
+	resp1, err := client.Do(req1)
 	if err != nil {
 		t.Fatalf("failed execute request: %v", err)
 	}
@@ -143,7 +200,11 @@ func TestAPI_HighRiskConfirmationFlow(t *testing.T) {
 		Approved:    true,
 		Reviewer:    "human-operator",
 	})
-	resp2, err := client.Post(ts.URL+"/api/challenges/"+execResp.ChallengeID+"/review", "application/json", bytes.NewReader(reviewBody))
+	req2, _ := http.NewRequest(http.MethodPost, ts.URL+"/api/challenges/"+execResp.ChallengeID+"/review", bytes.NewReader(reviewBody))
+	req2.Header.Set("Content-Type", "application/json")
+	req2.Header.Set("Authorization", "Bearer test-secret-must-be-at-least-32-chars-long!")
+
+	resp2, err := client.Do(req2)
 	if err != nil {
 		t.Fatalf("failed review request: %v", err)
 	}
@@ -158,16 +219,17 @@ func TestAPI_HighRiskConfirmationFlow(t *testing.T) {
 		t.Fatalf("expected approved confirmation token, got %+v", confirmResp)
 	}
 
-	// Step 3: Execute with valid confirmation token
-	// First let's point payment-service's control API to controlServer
-	// In standard flow, executor validates token then invokes control URL
-	// We verify that invalid token is rejected
+	// Step 3: Execute with bad confirmation token -> rejected 403
 	badExecBody, _ := json.Marshal(models.ActionExecutionRequest{
 		ServiceID:         "payment-service",
 		ActionType:        "restart_service",
 		ConfirmationToken: "invalid-token-12345",
 	})
-	respBad, err := client.Post(ts.URL+"/api/actions/execute", "application/json", bytes.NewReader(badExecBody))
+	reqBad, _ := http.NewRequest(http.MethodPost, ts.URL+"/api/actions/execute", bytes.NewReader(badExecBody))
+	reqBad.Header.Set("Content-Type", "application/json")
+	reqBad.Header.Set("Authorization", "Bearer test-secret-must-be-at-least-32-chars-long!")
+
+	respBad, err := client.Do(reqBad)
 	if err != nil {
 		t.Fatalf("failed bad execute request: %v", err)
 	}
