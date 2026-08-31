@@ -34,10 +34,10 @@ flowchart TB
         DB[("💾 SQLite Database\nWAL Mode + Busy Timeout")]
     end
 
-    subgraph MonitoredTier["Monitored Microservices Tier"]
-        PaymentSvc["💳 Payment Processing API (:8081)"]
-        AuthSvc["🔑 Authentication & IAM (:8082)"]
-        InventorySvc["📦 Inventory & Warehouse (:8083)"]
+    subgraph MonitoredTier["Real Monitored Infrastructure Tier"]
+        PaymentSvc["💳 Production Payment API"]
+        AuthSvc["🔑 Authentication & IAM Service"]
+        InventorySvc["📦 Core Inventory Engine"]
     end
 
     Agent -->|Discovers & Invokes| WebMCPRegistry
@@ -280,4 +280,4 @@ erDiagram
 | **Agent Interface** | WebMCP (`window.modelContext` / `document.modelContext`) | Standardized AI discovery without DOM scraping |
 | **Backend Core** | Go 1.22 (`net/http`, standard library HTTP router) | Zero third-party framework bloat, fast startup, concurrent safety |
 | **Persistence** | SQLite 3 (WAL mode, `modernc.org/sqlite` pure Go driver) | Zero external database dependencies, CGO-free, fast embedded execution |
-| **Monitored Services** | Go Microservices (Payment, Auth, Inventory on 8081–8083) | Real-world multi-service telemetry and chaos simulation |
+| **Monitored Services** | Real Infrastructure Services (Render, AWS, Kubernetes, custom Prometheus endpoints) | Live production telemetry collection and mutation execution |

@@ -71,17 +71,28 @@ func (s *Server) handleSelfHealth(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleServices(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
+	switch r.Method {
+	case http.MethodGet:
+		s.handler.ListServices(w, r)
+	case http.MethodPost:
+		s.handler.RegisterService(w, r)
+	default:
 		writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
-		return
 	}
-	s.handler.ListServices(w, r)
 }
 
 func (s *Server) handleServiceRoute(w http.ResponseWriter, r *http.Request) {
 	if strings.HasSuffix(r.URL.Path, "/health") && r.Method == http.MethodGet {
 		s.handler.GetServiceHealth(w, r)
 		return
+	}
+	if r.Method == http.MethodDelete {
+		serviceID := strings.TrimPrefix(r.URL.Path, "/api/services/")
+		serviceID = strings.Trim(serviceID, "/")
+		if serviceID != "" {
+			s.handler.DeleteService(w, r, serviceID)
+			return
+		}
 	}
 	writeJSONError(w, http.StatusNotFound, "endpoint not found")
 }

@@ -35,7 +35,18 @@ func setupTestServer(t *testing.T) (*Server, *httptest.Server, func()) {
 	}
 
 	reg := registry.NewRegistry(db)
-	_ = reg.SeedDefaultServices(context.Background())
+	_ = reg.RegisterService(context.Background(), models.Service{
+		ID:            "payment-service",
+		Name:          "Payment Processing API",
+		Description:   "Core payments gateway handling card transactions",
+		EndpointURL:   "http://127.0.0.1:8081/metrics",
+		ControlAPIURL: "http://127.0.0.1:8081/control",
+		ControlAPIKey: "dev-payment-key",
+		CurrentStatus: "healthy",
+		Replicas:      3,
+		MinReplicas:   1,
+		MaxReplicas:   10,
+	})
 
 	metricsAdapter := metrics.NewHTTPCollector()
 	alertEngine := alerts.NewEngine(db)

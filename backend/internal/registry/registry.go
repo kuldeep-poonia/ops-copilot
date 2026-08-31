@@ -122,77 +122,77 @@ func (r *Registry) UpdateServiceReplicas(ctx context.Context, id string, replica
 	return nil
 }
 
-// SeedDefaultServices initializes default microservice definitions if the table is empty.
-func (r *Registry) SeedDefaultServices(ctx context.Context) error {
-	var count int
-	err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM services").Scan(&count)
+// RegisterService adds or updates a monitored infrastructure service.
+func (r *Registry) RegisterService(ctx context.Context, s models.Service) error {
+	cleanID := strings.TrimSpace(s.ID)
+	if cleanID == "" || strings.TrimSpace(s.Name) == "" || strings.TrimSpace(s.EndpointURL) == "" {
+		return ErrInvalidService
+	}
+
+	if s.MinReplicas < 1 {
+		s.MinReplicas = 1
+	}
+	if s.MaxReplicas < s.MinReplicas {
+		s.MaxReplicas = s.MinReplicas + 5
+	}
+	if s.Replicas < s.MinReplicas {
+		s.Replicas = s.MinReplicas
+	}
+	if s.CurrentStatus == "" {
+		s.CurrentStatus = "healthy"
+	}
+
+	now := time.Now().UTC()
+	query := `
+		INSERT INTO services (id, name, description, endpoint_url, control_api_url, control_api_key,
+		                      current_status, replicas, min_replicas, max_replicas, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET
+			name = excluded.name,
+			description = excluded.description,
+			endpoint_url = excluded.endpoint_url,
+			control_api_url = excluded.control_api_url,
+			control_api_key = excluded.control_api_key,
+			current_status = excluded.current_status,
+			replicas = excluded.replicas,
+			min_replicas = excluded.min_replicas,
+			max_replicas = excluded.max_replicas,
+			updated_at = excluded.updated_at
+	`
+	_, err := r.db.ExecContext(
+		ctx, query,
+		cleanID, s.Name, s.Description, s.EndpointURL, s.ControlAPIURL, s.ControlAPIKey,
+		s.CurrentStatus, s.Replicas, s.MinReplicas, s.MaxReplicas, now, now,
+	)
 	if err != nil {
-		return fmt.Errorf("failed to count existing services: %w", err)
+		return fmt.Errorf("failed to register service %s: %w", cleanID, err)
 	}
-	if count > 0 {
-		return nil
+	return nil
+}
+
+// DeleteService removes a monitored service from the registry.
+func (r *Registry) DeleteService(ctx context.Context, id string) error {
+	cleanID := strings.TrimSpace(id)
+	if cleanID == "" {
+		return ErrInvalidService
 	}
 
-	defaults := []models.Service{
-		{
-			ID:            "payment-service",
-			Name:          "Payment Processing API",
-			Description:   "Core payments gateway handling card transactions and settlement webhooks",
-			EndpointURL:   "http://127.0.0.1:8081/metrics",
-			ControlAPIURL: "http://127.0.0.1:8081/control",
-			ControlAPIKey: "dev-payment-key",
-			CurrentStatus: "healthy",
-			Replicas:      3,
-			MinReplicas:   1,
-			MaxReplicas:   10,
-			CreatedAt:     time.Now().UTC(),
-			UpdatedAt:     time.Now().UTC(),
-		},
-		{
-			ID:            "auth-service",
-			Name:          "Authentication & IAM",
-			Description:   "OAuth2 token issuance, session validation, and directory integration",
-			EndpointURL:   "http://127.0.0.1:8082/metrics",
-			ControlAPIURL: "http://127.0.0.1:8082/control",
-			ControlAPIKey: "dev-auth-key",
-			CurrentStatus: "healthy",
-			Replicas:      2,
-			MinReplicas:   1,
-			MaxReplicas:   8,
-			CreatedAt:     time.Now().UTC(),
-			UpdatedAt:     time.Now().UTC(),
-		},
-		{
-			ID:            "inventory-service",
-			Name:          "Inventory & Catalog Engine",
-			Description:   "Real-time warehouse stock tracking and product catalog caching",
-			EndpointURL:   "http://127.0.0.1:8083/metrics",
-			ControlAPIURL: "http://127.0.0.1:8083/control",
-			ControlAPIKey: "dev-inventory-key",
-			CurrentStatus: "healthy",
-			Replicas:      4,
-			MinReplicas:   2,
-			MaxReplicas:   12,
-			CreatedAt:     time.Now().UTC(),
-			UpdatedAt:     time.Now().UTC(),
-		},
+	query := `DELETE FROM services WHERE id = ?`
+	res, err := r.db.ExecContext(ctx, query, cleanID)
+	if err != nil {
+		return fmt.Errorf("failed to delete service %s: %w", cleanID, err)
 	}
-
-	for _, s := range defaults {
-		query := `
-			INSERT INTO services (id, name, description, endpoint_url, control_api_url, control_api_key,
-			                      current_status, replicas, min_replicas, max_replicas, created_at, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-		`
-		_, err := r.db.ExecContext(
-			ctx, query,
-			s.ID, s.Name, s.Description, s.EndpointURL, s.ControlAPIURL, s.ControlAPIKey,
-			s.CurrentStatus, s.Replicas, s.MinReplicas, s.MaxReplicas, s.CreatedAt, s.UpdatedAt,
-		)
-		if err != nil {
-			return fmt.Errorf("failed to seed service %s: %w", s.ID, err)
-		}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return err
 	}
+	if rows == 0 {
+		return ErrServiceNotFound
+	}
+	return nil
+}
 
+// SeedDefaultServices is a no-op placeholder maintained for initialization compatibility.
+func (r *Registry) SeedDefaultServices(ctx context.Context) error {
 	return nil
 }

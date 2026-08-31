@@ -56,6 +56,46 @@ func (h *Handler) ListServices(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]interface{}{"services": services})
 }
 
+// RegisterService handles POST /api/services.
+func (h *Handler) RegisterService(w http.ResponseWriter, r *http.Request) {
+	var s models.Service
+	if err := json.NewDecoder(r.Body).Decode(&s); err != nil {
+		writeJSONError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if err := h.registry.RegisterService(r.Context(), s); err != nil {
+		if errors.Is(err, registry.ErrInvalidService) {
+			writeJSONError(w, http.StatusBadRequest, "invalid service parameters: id, name, and endpoint_url are required")
+			return
+		}
+		writeJSONError(w, http.StatusInternalServerError, "failed to register service")
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, map[string]interface{}{
+		"status":  "registered",
+		"service": s,
+	})
+}
+
+// DeleteService handles DELETE /api/services/{id}.
+func (h *Handler) DeleteService(w http.ResponseWriter, r *http.Request, serviceID string) {
+	if err := h.registry.DeleteService(r.Context(), serviceID); err != nil {
+		if errors.Is(err, registry.ErrServiceNotFound) {
+			writeJSONError(w, http.StatusNotFound, "service not found")
+			return
+		}
+		writeJSONError(w, http.StatusInternalServerError, "failed to delete service")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"status":    "deleted",
+		"serviceId": serviceID,
+	})
+}
+
 // GetServiceHealth handles GET /api/services/{id}/health.
 func (h *Handler) GetServiceHealth(w http.ResponseWriter, r *http.Request) {
 	serviceID := extractPathParam(r.URL.Path, "/api/services/", "/health")

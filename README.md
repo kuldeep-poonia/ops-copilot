@@ -293,22 +293,15 @@ Key environment variables in `.env`:
 | `OPS_COPILOT_RATE_LIMIT_BURST` | Token bucket burst capacity | `40` |
 | `OPS_COPILOT_ALLOWED_ORIGINS` | Strict CORS origin whitelist | `http://localhost:5173,http://127.0.0.1:5173` |
 
-### 2. Start Monitored Microservices
-In a separate terminal, launch the 3 mock microservices (Payment, Auth, Inventory on ports `8081`, `8082`, `8083`):
-```bash
-cd backend
-go run ./cmd/mockservices/main.go
-```
-
-### 3. Start Backend Server
-In a separate terminal, start the primary Go REST API and WebMCP server:
+### 2. Start Backend Server
+In your terminal, start the primary Go REST API and WebMCP server:
 ```bash
 cd backend
 go run ./cmd/server/main.go
 ```
 
-### 4. Start Frontend Dashboard
-In a third terminal, install dependencies and launch the Vite dev server:
+### 3. Start Frontend Dashboard
+In a separate terminal, install dependencies and launch the Vite dev server:
 ```bash
 cd frontend
 npm install
@@ -316,6 +309,26 @@ npm run dev
 ```
 
 Open [http://localhost:5173](http://localhost:5173) in your browser.
+
+### 4. Register Real Services
+You can register your real deployed services (Render, AWS, Kubernetes, custom Prometheus endpoints) directly via the authenticated API:
+
+```bash
+curl -X POST http://localhost:8080/api/services \
+  -H "Authorization: Bearer dev-secret-key-must-be-at-least-32-chars-long!" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "my-production-service",
+    "name": "Production API Gateway",
+    "description": "Live production microservice",
+    "endpointUrl": "https://my-service.com/metrics",
+    "controlApiUrl": "https://my-service.com/control",
+    "controlApiKey": "secret-control-key",
+    "minReplicas": 1,
+    "maxReplicas": 10,
+    "replicas": 3
+  }'
+```
 
 ---
 

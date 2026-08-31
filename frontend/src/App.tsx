@@ -7,7 +7,6 @@ import {
   Shield,
   CheckCircle2,
   AlertCircle,
-  Zap,
 } from 'lucide-react';
 import type { Service, ServiceHealth, Alert, AuditEntry } from './types';
 import { api } from './services/api';
@@ -214,17 +213,6 @@ export function App() {
     }
   };
 
-  // Inject Chaos on port for testing
-  const handleInjectChaos = async (port: number) => {
-    try {
-      await fetch(`http://127.0.0.1:${port}/chaos/spike`, { method: 'POST' });
-      showNotification('success', `Injected CPU load spike on port ${port}`);
-      setTimeout(refreshData, 1000);
-    } catch {
-      showNotification('error', `Could not reach mock service on port ${port}`);
-    }
-  };
-
   const firingAlerts = alerts.filter((a: Alert) => a.status === 'firing');
   const degradedServices = services.filter((s: Service) => {
     const h = healthMap[s.id];
@@ -380,32 +368,6 @@ export function App() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        {/* Testing Chaos Bar */}
-        <div className="bg-[#F5F5F7] p-3.5 rounded-2xl border border-[#E5E5EA] flex flex-wrap items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2 text-[#6E6E73]">
-            <Zap className="w-4 h-4 text-[#FF9F0A]" />
-            <span className="font-semibold text-[#1D1D1F]">Chaos Injection:</span>
-            <span>Simulate telemetry spikes to evaluate alert detection and AI agent remediation</span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => handleInjectChaos(8081)}
-              className="px-3 py-1.5 rounded-xl bg-white hover:bg-[#E5E5EA] text-[#1D1D1F] border border-[#D2D2D7] font-medium transition-colors cursor-pointer"
-            >
-              Spike Payment API (Port 8081)
-            </button>
-            <button
-              type="button"
-              onClick={() => handleInjectChaos(8082)}
-              className="px-3 py-1.5 rounded-xl bg-white hover:bg-[#E5E5EA] text-[#1D1D1F] border border-[#D2D2D7] font-medium transition-colors cursor-pointer"
-            >
-              Spike Auth IAM (Port 8082)
-            </button>
-          </div>
-        </div>
-
         {/* Tab 1: Overview */}
         {activeTab === 'overview' && (
           <div className="space-y-6">
