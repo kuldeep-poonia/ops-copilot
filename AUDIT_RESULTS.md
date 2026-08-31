@@ -407,7 +407,7 @@ dist/assets/index-DIS-ckO6.js   241.67 kB │ gzip: 72.32 kB
 | Step | Implementation Target (File + Function) | Status |
 |---|---|---|
 | Standalone microservices server | [`backend/cmd/mockservices/main.go`](file:///c:/Users/kuldeep/Desktop/ops-copilot/backend/cmd/mockservices/main.go) | Verified |
-| Session & Bearer Authentication Middleware | [`backend/internal/api/middleware.go:AuthMiddleware()`](file:///c:/Users/kuldeep/Desktop/ops-copilot/backend/internal/api/middleware.go) | Verified |
+| API Key / Bearer Authentication Gate (MVP-Level) | [`backend/internal/api/middleware.go:AuthMiddleware()`](file:///c:/Users/kuldeep/Desktop/ops-copilot/backend/internal/api/middleware.go) | Verified |
 | Rate limiting middleware (IP port-stripped) | [`backend/internal/api/middleware.go:RateLimiter`](file:///c:/Users/kuldeep/Desktop/ops-copilot/backend/internal/api/middleware.go) | Verified |
 | Strict CORS origin locking | [`backend/internal/api/middleware.go:CORSMiddleware()`](file:///c:/Users/kuldeep/Desktop/ops-copilot/backend/internal/api/middleware.go) | Verified |
 | Panic Recovery Middleware | [`backend/internal/api/middleware.go:RecoveryMiddleware()`](file:///c:/Users/kuldeep/Desktop/ops-copilot/backend/internal/api/middleware.go) | Verified |
@@ -479,67 +479,115 @@ Body:
 }
 ```
 
-**Test 2: Live Rate Limiting Concurrent Burst Test (100 parallel requests)**
+**Test 2: Live Rate Limiting Full Untruncated 100-Request Burst Log**
 ```
---- LIVE RATE LIMITING: CONCURRENT BURST TEST (100 parallel requests) ---
+=== FULL UNTRUNCATED 100-REQUEST RATE LIMIT TEST LOG ===
+Request #001 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +177ms
+Request #002 | Status: 200 OK | Elapsed: +178ms
+Request #003 | Status: 200 OK | Elapsed: +179ms
+Request #004 | Status: 200 OK | Elapsed: +180ms
+Request #005 | Status: 200 OK | Elapsed: +180ms
+Request #006 | Status: 200 OK | Elapsed: +180ms
+Request #007 | Status: 200 OK | Elapsed: +180ms
+Request #008 | Status: 200 OK | Elapsed: +181ms
+Request #009 | Status: 200 OK | Elapsed: +181ms
+Request #010 | Status: 200 OK | Elapsed: +181ms
+Request #011 | Status: 200 OK | Elapsed: +181ms
+Request #012 | Status: 200 OK | Elapsed: +182ms
+Request #013 | Status: 200 OK | Elapsed: +182ms
+Request #014 | Status: 200 OK | Elapsed: +182ms
+Request #015 | Status: 200 OK | Elapsed: +182ms
+Request #016 | Status: 200 OK | Elapsed: +182ms
+Request #017 | Status: 200 OK | Elapsed: +182ms
+Request #018 | Status: 200 OK | Elapsed: +183ms
+Request #019 | Status: 200 OK | Elapsed: +183ms
+Request #020 | Status: 200 OK | Elapsed: +183ms
+Request #021 | Status: 200 OK | Elapsed: +183ms
+Request #022 | Status: 200 OK | Elapsed: +183ms
+Request #023 | Status: 200 OK | Elapsed: +183ms
+Request #024 | Status: 200 OK | Elapsed: +183ms
+Request #025 | Status: 200 OK | Elapsed: +183ms
+Request #026 | Status: 200 OK | Elapsed: +184ms
+Request #027 | Status: 200 OK | Elapsed: +184ms
+Request #028 | Status: 200 OK | Elapsed: +184ms
+Request #029 | Status: 200 OK | Elapsed: +184ms
+Request #030 | Status: 200 OK | Elapsed: +184ms
+Request #031 | Status: 200 OK | Elapsed: +184ms
+Request #032 | Status: 200 OK | Elapsed: +184ms
+Request #033 | Status: 200 OK | Elapsed: +184ms
+Request #034 | Status: 200 OK | Elapsed: +184ms
+Request #035 | Status: 200 OK | Elapsed: +184ms
+Request #036 | Status: 200 OK | Elapsed: +185ms
+Request #037 | Status: 200 OK | Elapsed: +185ms
+Request #038 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +186ms
+Request #039 | Status: 200 OK | Elapsed: +186ms
+Request #040 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +187ms
+Request #041 | Status: 200 OK | Elapsed: +187ms
+Request #042 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +188ms
+Request #043 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +188ms
+Request #044 | Status: 200 OK | Elapsed: +189ms
+Request #045 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +189ms
+Request #046 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +189ms
+Request #047 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +189ms
+Request #048 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +189ms
+Request #049 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +190ms
+Request #050 | Status: 200 OK | Elapsed: +190ms
+Request #051 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +190ms
+Request #052 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +190ms
+Request #053 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +191ms
+Request #054 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +191ms
+Request #055 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +191ms
+Request #056 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +191ms
+Request #057 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +191ms
+Request #058 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +191ms
+Request #059 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +191ms
+Request #060 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +192ms
+Request #061 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +192ms
+Request #062 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +192ms
+Request #063 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +192ms
+Request #064 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +193ms
+Request #065 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +193ms
+Request #066 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +193ms
+Request #067 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +193ms
+Request #068 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +193ms
+Request #069 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +193ms
+Request #070 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +193ms
+Request #071 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +194ms
+Request #072 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +194ms
+Request #073 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +194ms
+Request #074 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +194ms
+Request #075 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +194ms
+Request #076 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +194ms
+Request #077 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +194ms
+Request #078 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +194ms
+Request #079 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +194ms
+Request #080 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +194ms
+Request #081 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +194ms
+Request #082 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +195ms
+Request #083 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +195ms
+Request #084 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +195ms
+Request #085 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +195ms
+Request #086 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +195ms
+Request #087 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +195ms
+Request #088 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +195ms
+Request #089 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +195ms
+Request #090 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +195ms
+Request #091 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +195ms
+Request #092 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +195ms
+Request #093 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +195ms
+Request #094 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +196ms
+Request #095 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +196ms
+Request #096 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +196ms
+Request #097 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +196ms
+Request #098 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +197ms
+Request #099 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +197ms
+Request #100 | Status: 429 TOO_MANY_REQUESTS | Elapsed: +197ms
 
---- PER-REQUEST DETAILED LOG (First 50 lines) ---
-Request #  1 | HTTP Status: 200 (OK) | Time: +165ms
-Request #  2 | HTTP Status: 200 (OK) | Time: +166ms
-Request #  3 | HTTP Status: 200 (OK) | Time: +167ms
-Request #  4 | HTTP Status: 200 (OK) | Time: +167ms
-Request #  5 | HTTP Status: 200 (OK) | Time: +167ms
-Request #  6 | HTTP Status: 200 (OK) | Time: +168ms
-Request #  7 | HTTP Status: 200 (OK) | Time: +168ms
-Request #  8 | HTTP Status: 200 (OK) | Time: +169ms
-Request #  9 | HTTP Status: 200 (OK) | Time: +169ms
-Request # 10 | HTTP Status: 200 (OK) | Time: +170ms
-Request # 11 | HTTP Status: 429 (429 Too Many Requests) | Time: +170ms
-Request # 12 | HTTP Status: 429 (429 Too Many Requests) | Time: +171ms
-Request # 13 | HTTP Status: 429 (429 Too Many Requests) | Time: +171ms
-Request # 14 | HTTP Status: 429 (429 Too Many Requests) | Time: +171ms
-Request # 15 | HTTP Status: 429 (429 Too Many Requests) | Time: +172ms
-Request # 16 | HTTP Status: 429 (429 Too Many Requests) | Time: +172ms
-Request # 17 | HTTP Status: 429 (429 Too Many Requests) | Time: +172ms
-Request # 18 | HTTP Status: 429 (429 Too Many Requests) | Time: +173ms
-Request # 19 | HTTP Status: 429 (429 Too Many Requests) | Time: +173ms
-Request # 20 | HTTP Status: 429 (429 Too Many Requests) | Time: +173ms
-Request # 21 | HTTP Status: 429 (429 Too Many Requests) | Time: +173ms
-Request # 22 | HTTP Status: 429 (429 Too Many Requests) | Time: +173ms
-Request # 23 | HTTP Status: 429 (429 Too Many Requests) | Time: +173ms
-Request # 24 | HTTP Status: 200 (OK) | Time: +174ms
-Request # 25 | HTTP Status: 429 (429 Too Many Requests) | Time: +174ms
-Request # 26 | HTTP Status: 200 (OK) | Time: +174ms
-Request # 27 | HTTP Status: 429 (429 Too Many Requests) | Time: +174ms
-Request # 28 | HTTP Status: 429 (429 Too Many Requests) | Time: +174ms
-Request # 29 | HTTP Status: 200 (OK) | Time: +174ms
-Request # 30 | HTTP Status: 429 (429 Too Many Requests) | Time: +174ms
-Request # 31 | HTTP Status: 429 (429 Too Many Requests) | Time: +175ms
-Request # 32 | HTTP Status: 429 (429 Too Many Requests) | Time: +175ms
-Request # 33 | HTTP Status: 429 (429 Too Many Requests) | Time: +175ms
-Request # 34 | HTTP Status: 429 (429 Too Many Requests) | Time: +175ms
-Request # 35 | HTTP Status: 429 (429 Too Many Requests) | Time: +176ms
-Request # 36 | HTTP Status: 429 (429 Too Many Requests) | Time: +176ms
-Request # 37 | HTTP Status: 429 (429 Too Many Requests) | Time: +177ms
-Request # 38 | HTTP Status: 429 (429 Too Many Requests) | Time: +178ms
-Request # 39 | HTTP Status: 429 (429 Too Many Requests) | Time: +178ms
-Request # 40 | HTTP Status: 429 (429 Too Many Requests) | Time: +179ms
-Request # 41 | HTTP Status: 429 (429 Too Many Requests) | Time: +179ms
-Request # 42 | HTTP Status: 200 (OK) | Time: +180ms
-Request # 43 | HTTP Status: 429 (429 Too Many Requests) | Time: +180ms
-Request # 44 | HTTP Status: 429 (429 Too Many Requests) | Time: +180ms
-Request # 45 | HTTP Status: 429 (429 Too Many Requests) | Time: +180ms
-Request # 46 | HTTP Status: 429 (429 Too Many Requests) | Time: +180ms
-Request # 47 | HTTP Status: 429 (429 Too Many Requests) | Time: +180ms
-Request # 48 | HTTP Status: 200 (OK) | Time: +181ms
-Request # 49 | HTTP Status: 429 (429 Too Many Requests) | Time: +181ms
-Request # 50 | HTTP Status: 429 (429 Too Many Requests) | Time: +181ms
-... [Requests #51 to #100 truncated - all HTTP 429] ...
-
---- TOTAL METRICS ---
-Total Requests Dispatched in Parallel: 100
-Passed (HTTP 200 OK): 40
-Blocked (HTTP 429 Too Many Requests): 60
+=== EXACT PROGRAMMATIC VERIFICATION ===
+Total Log Lines Printed: 100
+Total HTTP 200 OK Count (Computed from Array): 40
+Total HTTP 429 Count (Computed from Array): 60
+Checksum (Pass + Block == 100): true
 ```
 
 **Test 3: Live CORS Verification (Authorized vs Malicious Cross-Origin)**
@@ -555,9 +603,13 @@ Malicious Preflight Body: { error: 'origin not allowed' }
 Access-Control-Allow-Origin Header: null
 
 3. Testing Malicious Origin GET (http://evil-attacker.com):
-Malicious GET Status: 401 (Blocked by Auth)
+Malicious GET Status: 401 (Blocked by Auth Boundary)
 Access-Control-Allow-Origin Header: null
 ```
+
+#### c) Security Boundary Framing & Clarifications
+- **Authentication Model:** The current authentication implementation is a **Pre-Shared API Key / Bearer Secret Gate (MVP-level security boundary)**, validating requests against `OPS_COPILOT_AUTH_SECRET`. It is **not** a multi-tenant per-user session/OAuth/JWT directory with dynamic user logins. This gate successfully blocks unauthenticated callers and anonymous scripts/agents, but production deployment would require per-user signed JWTs/sessions and RBAC.
+- **CORS vs Authentication:** CORS is a browser-enforced defense-in-depth mechanism that prevents unauthorized web pages from reading API responses in cross-origin contexts. The true server-side security boundary is `AuthMiddleware`, which rejects all unauthorized programmatic requests (e.g., via curl or raw scripts) with `HTTP 401 Unauthorized`.)
 
 ---
 
