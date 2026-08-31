@@ -124,6 +124,10 @@ func TestAPI_HighRiskConfirmationFlow(t *testing.T) {
 	}
 	defer resp1.Body.Close()
 
+	if resp1.StatusCode != http.StatusPreconditionRequired {
+		t.Fatalf("expected HTTP 428 Precondition Required, got %d", resp1.StatusCode)
+	}
+
 	var execResp models.ActionExecutionResponse
 	if err := json.NewDecoder(resp1.Body).Decode(&execResp); err != nil {
 		t.Fatalf("failed decoding execution response: %v", err)

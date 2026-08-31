@@ -316,6 +316,10 @@ func (h *Handler) ExecuteAction(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	if resp.Status == "confirmation_required" {
+		writeJSON(w, http.StatusPreconditionRequired, resp)
+		return
+	}
 
 	writeJSON(w, http.StatusOK, resp)
 }
