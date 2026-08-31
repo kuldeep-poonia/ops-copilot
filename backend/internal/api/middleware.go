@@ -98,7 +98,7 @@ func CORSMiddleware(allowedOrigins []string) func(http.Handler) http.Handler {
 			if isAllowed {
 				w.Header().Set("Access-Control-Allow-Origin", origin)
 				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-				w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, X-Session-ID")
+				w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, X-Session-ID, X-Session-Token")
 				w.Header().Set("Access-Control-Max-Age", "86400")
 				w.Header().Set("Vary", "Origin")
 			}
@@ -110,6 +110,36 @@ func CORSMiddleware(allowedOrigins []string) func(http.Handler) http.Handler {
 					w.WriteHeader(http.StatusForbidden)
 					_, _ = w.Write([]byte(`{"error":"origin not allowed"}`))
 				}
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+// AuthMiddleware enforces authenticated sessions via Bearer token or X-Session-Token header.
+func AuthMiddleware(authSecret string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Public probe endpoint for liveness checks
+			if r.URL.Path == "/api/health" {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			authHeader := r.Header.Get("Authorization")
+			token := ""
+			if strings.HasPrefix(authHeader, "Bearer ") {
+				token = strings.TrimPrefix(authHeader, "Bearer ")
+			} else if sessionHeader := r.Header.Get("X-Session-Token"); sessionHeader != "" {
+				token = sessionHeader
+			}
+
+			if token == "" || token != authSecret {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusUnauthorized)
+				_, _ = w.Write([]byte(`{"error":"unauthorized: valid session or bearer token is required"}`))
 				return
 			}
 
