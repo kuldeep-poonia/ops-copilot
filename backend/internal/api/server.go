@@ -28,6 +28,8 @@ func NewServer(cfg *config.Config, handler *Handler) *Server {
 	}
 
 	// Register API routes
+	mux.HandleFunc("/", s.handleRoot)
+	mux.HandleFunc("/health", s.handleSelfHealth)
 	mux.HandleFunc("/api/health", s.handleSelfHealth)
 	mux.HandleFunc("/api/services", s.handleServices)
 	mux.HandleFunc("/api/services/", s.handleServiceRoute)
@@ -60,6 +62,26 @@ func (s *Server) Start() error {
 // Shutdown initiates a graceful shutdown of the HTTP server.
 func (s *Server) Shutdown(ctx context.Context) error {
 	return s.httpServer.Shutdown(ctx)
+}
+
+func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		writeJSONError(w, http.StatusNotFound, "endpoint not found")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"service":   "Ops Co-pilot Backend API",
+		"status":    "healthy",
+		"version":   "1.0.0",
+		"endpoints": map[string]string{
+			"health":    "/api/health",
+			"services":  "/api/services",
+			"alerts":    "/api/alerts",
+			"auditLog":  "/api/audit-log",
+			"actions":   "/api/actions/execute",
+		},
+		"message": "Protected API endpoints require Authorization: Bearer <token>",
+	})
 }
 
 func (s *Server) handleSelfHealth(w http.ResponseWriter, r *http.Request) {

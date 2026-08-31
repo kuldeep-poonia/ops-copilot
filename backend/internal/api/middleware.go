@@ -122,8 +122,8 @@ func CORSMiddleware(allowedOrigins []string) func(http.Handler) http.Handler {
 func AuthMiddleware(authSecret string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Public probe endpoint for liveness checks
-			if r.URL.Path == "/api/health" {
+			// Public probe and welcome endpoints
+			if r.URL.Path == "/" || r.URL.Path == "/health" || r.URL.Path == "/api/health" {
 				next.ServeHTTP(w, r)
 				return
 			}
