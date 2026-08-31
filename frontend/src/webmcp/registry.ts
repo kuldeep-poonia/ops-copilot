@@ -229,11 +229,18 @@ export function createWebMCPTools(): WebMCPTool[] {
   ];
 }
 
-// Register all tools onto window.modelContext or navigator.modelContext per WebMCP spec
+// Register all tools onto document.modelContext and window.modelContext per WebMCP spec
 export function registerWebMCPTools(): () => void {
   const tools = createWebMCPTools();
 
-  // Attach to window for standard in-browser WebMCP agent discovery
+  const doc = document as unknown as {
+    modelContext?: {
+      registerTool?: (tool: WebMCPTool) => void;
+      unregisterTool?: (name: string) => void;
+      tools?: Record<string, WebMCPTool>;
+    };
+  };
+
   const win = window as unknown as {
     modelContext?: {
       registerTool?: (tool: WebMCPTool) => void;
@@ -242,29 +249,36 @@ export function registerWebMCPTools(): () => void {
     };
   };
 
-  if (!win.modelContext) {
-    win.modelContext = {
-      tools: {},
-      registerTool: (tool: WebMCPTool) => {
-        if (win.modelContext?.tools) {
-          win.modelContext.tools[tool.name] = tool;
-        }
-      },
-      unregisterTool: (name: string) => {
-        if (win.modelContext?.tools) {
-          delete win.modelContext.tools[name];
-        }
-      },
-    };
-  }
+  const initContext = (target: { modelContext?: { registerTool?: (tool: WebMCPTool) => void; unregisterTool?: (name: string) => void; tools?: Record<string, WebMCPTool> } }) => {
+    if (!target.modelContext) {
+      target.modelContext = {
+        tools: {},
+        registerTool: (tool: WebMCPTool) => {
+          if (target.modelContext?.tools) {
+            target.modelContext.tools[tool.name] = tool;
+          }
+        },
+        unregisterTool: (name: string) => {
+          if (target.modelContext?.tools) {
+            delete target.modelContext.tools[name];
+          }
+        },
+      };
+    }
+  };
+
+  initContext(doc);
+  initContext(win);
 
   tools.forEach((tool) => {
+    doc.modelContext?.registerTool?.(tool);
     win.modelContext?.registerTool?.(tool);
   });
 
   // Cleanup function on unmount
   return () => {
     tools.forEach((tool) => {
+      doc.modelContext?.unregisterTool?.(tool.name);
       win.modelContext?.unregisterTool?.(tool.name);
     });
   };
