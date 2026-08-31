@@ -19,6 +19,11 @@ async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
     },
   });
 
+  // HTTP 428 Precondition Required carries a valid confirmation challenge response
+  if (response.status === 428) {
+    return response.json() as Promise<T>;
+  }
+
   if (!response.ok) {
     let errorMsg = `HTTP ${response.status}: ${response.statusText}`;
     try {
