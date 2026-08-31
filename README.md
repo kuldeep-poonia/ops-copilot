@@ -283,9 +283,13 @@ npm run build
 
 ---
 
-## Architecture
+## Architecture & Security Highlights
 
-For complete technical specifications on state machines, token buckets, single-use cryptographic tokens, secret scrubbing, and security boundaries, see [ARCHITECTURE.md](architecture.md).
+- **WebMCP In-Browser Registry:** Standardized tools dynamically discovered and executed by autonomous agents in the browser session.
+- **Structural Safety Tiers:** Read-only inspection tools execute freely; high-risk actions (restart, scale) are halted until an authorized human signs off on an on-screen dialog.
+- **Cryptographic Token Guardrail:** Human approvals generate single-use, SHA-256 bound HMAC tokens with a 60-second TTL that prevent parameter tampering, replaying, and scope escalation.
+- **Immutable Audit Trail:** Append-only ledger with automated secret scrubbing for zero credentials leakage.
+- **Layered Defense:** IP token-bucket rate limiting (20 req/s, 40 burst), Bearer auth gating, and origin-locked CORS preflight validation.
 
 ---
 
