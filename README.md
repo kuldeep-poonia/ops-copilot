@@ -1,96 +1,264 @@
 # Ops Co-pilot
 
-Ops Co-pilot is a web-based infrastructure monitoring dashboard and operational control platform that exposes live service telemetry and remediation actions as structured WebMCP tools for browser-based AI agents. It enforces structural server-side guardrails and human confirmation before executing any high-risk changes (like service restarts or scaling).
+> An AI-friendly observability and incident remediation dashboard that allows autonomous web agents to inspect infrastructure telemetry and execute operational actions with cryptographic human-in-the-loop guardrails.
 
 ---
 
-## Key Features
-
-- **Live Infrastructure Telemetry**: Real-time aggregation of CPU load, memory pressure, error rates, uptime, and active alerts across monitored services.
-- **First-Class WebMCP Integration**: Standard in-browser tool registration (`window.modelContext`) enabling AI agents (e.g. ChatGPT, Claude) to query telemetry and initiate actions without brittle DOM scraping.
-- **Safety by Construction**: High-risk actions (`restart_service`, `scale_service`) require cryptographic single-use confirmation tokens generated only after explicit human on-screen interaction.
-- **Deterministic Alert Engine**: Threshold-based evaluation with flapping deduplication, severity prioritization, and collaborative incident note tracking.
-- **Immutable Audit Trail**: Append-only operational event logging with automatic secret and credential scrubbing.
-- **Pluggable Metrics Interface**: Clean `MetricsSource` Go interface that talks to live HTTP collectors or standard monitoring backends.
+## Live Demo
+- **Dashboard URL:** [http://localhost:5173](http://localhost:5173) *(Local development)*
+- **API Endpoint:** [http://localhost:8080/api](http://localhost:8080/api)
 
 ---
 
-## WebMCP Tools Reference
+## What Problem Does It Solve?
 
-All WebMCP tools are registered upon dashboard mount and categorized into explicit safety tiers:
+When AI agents are given operational control over infrastructure, traditional dashboards either lock them out completely or give them unrestricted write access that risks catastrophic production outages. 
 
-| Tool Name | Safety Tier | Purpose & Description |
-|---|---|---|
-| `get_service_health` | Read-only | Returns live CPU, memory, error rate, uptime, and status for a specified service. |
-| `list_active_alerts` | Read-only | Lists firing and acknowledged alerts with threshold rules, observed values, and incident notes. |
-| `get_audit_log` | Read-only | Retrieves the immutable audit log of operational actions taken by agents and humans. |
-| `acknowledge_alert` | Low-risk | Acknowledges an active alert to indicate triage is underway (reversible, executed immediately). |
-| `add_incident_note` | Low-risk | Appends diagnostic findings, remediation context, or triage hypotheses to an ongoing alert. |
-| `restart_service` | High-risk | Initiates a graceful service restart; structurally blocks until confirmed via human modal. |
-| `scale_service` | High-risk | Scales service instance replicas; structurally blocks until confirmed via human modal. |
+**Ops Co-pilot bridges this gap** by exposing standardized, in-browser WebMCP tools with structural safety tiering:
+1. **Read-Only & Low-Risk Tools:** Agents can freely inspect telemetry, list firing alerts, acknowledge incidents, and post diagnostic notes.
+2. **High-Risk Guardrails:** Disruptive actions (restarting services, scaling replicas) are intercepted by the backend. The action is paused until an on-screen human operator reviews the technical rationale and approves a single-use, SHA-256 bound cryptographic confirmation token with a 60-second TTL.
 
 ---
 
-## Project Architecture
+## WebMCP Tools
 
-```
-ops-copilot/
-├── backend/                  # Go HTTP backend (port 8080)
-│   ├── cmd/server/           # Backend entry point
-│   ├── cmd/mockservices/     # Live monitored microservices (ports 8081, 8082, 8083)
-│   ├── internal/
-│   │   ├── alerts/           # Alert engine & flapping deduplication
-│   │   ├── api/              # REST handlers, rate limiting, and CORS middleware
-│   │   ├── audit/            # Append-only audit logger with secret scrubbing
-│   │   ├── config/           # Fail-fast environment configuration loader
-│   │   ├── database/         # Pure Go SQLite driver (modernc.org/sqlite) & migrations
-│   │   ├── executor/         # Action executor & service control API client
-│   │   ├── guardrail/        # Cryptographic confirmation token generator & validator
-│   │   ├── metrics/          # MetricsSource interface & HTTP collector
-│   │   ├── models/           # Domain data models & API DTOs
-│   │   └── registry/         # Service registry and seed configurations
-│   └── *_test.go             # Hardcore adversarial & concurrency test suites
-│
-├── frontend/                 # React + TypeScript + Vite dashboard (port 5173)
-│   ├── src/
-│   │   ├── components/       # Service Cards, Alerts Panel, Audit Stream, Confirm Dialog
-│   │   ├── services/         # API HTTP client
-│   │   ├── webmcp/           # WebMCP tool definitions and modelContext registration
-│   │   ├── App.tsx           # Dashboard layout and live telemetry poller
-│   │   └── index.css         # Dark-mode design system & animations
-│   └── package.json
-│
-├── LICENSE                   # MIT License
-└── README.md
+Ops Co-pilot exposes 7 real WebMCP tools registered directly onto the browser's `modelContext` (`window.modelContext` / `document.modelContext`). AI agents operating inside the browser session discover and invoke these tools to inspect system state and remediate incidents.
+
+### 1. `get_service_health` (Read-Only)
+```javascript
+document.modelContext.registerTool({
+  name: "get_service_health",
+  description: "Fetch real-time health metrics (CPU usage, memory pressure, error rate, uptime, and status) for a specific registered service.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      serviceId: {
+        type: "string",
+        description: "The unique identifier of the monitored service (e.g. payment-service, auth-service, inventory-service)"
+      }
+    },
+    required: ["serviceId"]
+  },
+  execute: async (input) => {
+    return await api.getServiceHealth(input.serviceId);
+  }
+});
 ```
 
+### 2. `list_active_alerts` (Read-Only)
+```javascript
+document.modelContext.registerTool({
+  name: "list_active_alerts",
+  description: "List current firing or acknowledged infrastructure and service alerts with severity levels, thresholds, and triage notes.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      serviceId: {
+        type: "string",
+        description: "Optional service ID to filter alerts for a specific service only"
+      },
+      status: {
+        type: "string",
+        description: "Optional filter by alert status: firing, acknowledged, or resolved",
+        enum: ["firing", "acknowledged", "resolved"]
+      }
+    }
+  },
+  execute: async (input) => {
+    return await api.listAlerts(input.serviceId, input.status);
+  }
+});
+```
+
+### 3. `get_audit_log` (Read-Only)
+```javascript
+document.modelContext.registerTool({
+  name: "get_audit_log",
+  description: "Retrieve the immutable audit trail of operational actions taken by AI agents and human operators.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      serviceId: {
+        type: "string",
+        description: "Optional service ID to filter audit records"
+      },
+      limit: {
+        type: "number",
+        description: "Maximum number of audit entries to return (default: 20)"
+      }
+    }
+  },
+  execute: async (input) => {
+    return await api.listAuditLogs(input.limit || 20, 0, input.serviceId);
+  }
+});
+```
+
+### 4. `acknowledge_alert` (Low-Risk Action)
+```javascript
+document.modelContext.registerTool({
+  name: "acknowledge_alert",
+  description: "Acknowledge an active alert to signal that triage is underway. This is a low-risk, reversible action that executes immediately.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      alertId: {
+        type: "string",
+        description: "The unique alert ID to acknowledge (e.g. alt-12345678)"
+      },
+      reason: {
+        type: "string",
+        description: "Explanation or triage note for why this alert is being acknowledged"
+      }
+    },
+    required: ["alertId"]
+  },
+  execute: async (input) => {
+    return await api.acknowledgeAlert(input.alertId, "agent", input.reason);
+  }
+});
+```
+
+### 5. `add_incident_note` (Low-Risk Action)
+```javascript
+document.modelContext.registerTool({
+  name: "add_incident_note",
+  description: "Append an operational note or diagnostic hypothesis to an ongoing alert. This is a low-risk action that executes immediately.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      alertId: {
+        type: "string",
+        description: "The ID of the alert to attach the note to"
+      },
+      content: {
+        type: "string",
+        description: "The diagnostic finding, remediation step, or context to record"
+      }
+    },
+    required: ["alertId", "content"]
+  },
+  execute: async (input) => {
+    return await api.addIncidentNote(input.alertId, "agent", input.content);
+  }
+});
+```
+
+### 6. `restart_service` (High-Risk Action — Human Guardrail Required)
+```javascript
+document.modelContext.registerTool({
+  name: "restart_service",
+  description: "High-risk action: Initiates a graceful restart of a monitored service. Structural safety requires explicit human confirmation via on-screen dialog before execution.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      serviceId: {
+        type: "string",
+        description: "The ID of the service to restart"
+      },
+      reason: {
+        type: "string",
+        description: "Clear technical rationale for why restarting this service is necessary"
+      }
+    },
+    required: ["serviceId", "reason"]
+  },
+  execute: async (input) => {
+    // 1. Initial execution returns HTTP 428 Precondition Required with confirmation challenge
+    const initial = await api.executeAction(input.serviceId, "restart_service", {}, input.reason, undefined, "agent");
+    
+    if (initial.status === "confirmation_required" && initial.requiredConfirmation) {
+      // 2. UI prompts human operator to review rationale & approve
+      const confirmationToken = await promptHumanApproval(initial.requiredConfirmation);
+      // 3. Execution resumes with single-use cryptographic token
+      return await api.executeAction(input.serviceId, "restart_service", {}, input.reason, confirmationToken, "agent");
+    }
+    return initial;
+  }
+});
+```
+
+### 7. `scale_service` (High-Risk Action — Human Guardrail Required)
+```javascript
+document.modelContext.registerTool({
+  name: "scale_service",
+  description: "High-risk action: Adjusts the replica count for a service. Structural safety requires explicit human confirmation via on-screen dialog before execution.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      serviceId: {
+        type: "string",
+        description: "The ID of the service to scale"
+      },
+      replicas: {
+        type: "number",
+        description: "The target replica count (must be within service min/max boundaries)"
+      },
+      reason: {
+        type: "string",
+        description: "Technical justification for the replica adjustment"
+      }
+    },
+    required: ["serviceId", "replicas", "reason"]
+  },
+  execute: async (input) => {
+    const initial = await api.executeAction(input.serviceId, "scale_service", { replicas: input.replicas }, input.reason, undefined, "agent");
+    
+    if (initial.status === "confirmation_required" && initial.requiredConfirmation) {
+      const confirmationToken = await promptHumanApproval(initial.requiredConfirmation);
+      return await api.executeAction(input.serviceId, "scale_service", { replicas: input.replicas }, input.reason, confirmationToken, "agent");
+    }
+    return initial;
+  }
+});
+```
+
 ---
 
-## Getting Started Locally
+## Local Setup Instructions
 
 ### Prerequisites
-- **Go**: 1.22+ (tested on Go 1.26)
-- **Node.js**: 18+ (tested on Node 24)
-- **npm**: 9+
+- **Go:** `v1.22+`
+- **Node.js:** `v18+`
+- **npm:** `v9+`
 
-### 1. Start the Monitored Microservices
-In terminal 1, start the three sample microservices (`payment-service` on 8081, `auth-service` on 8082, `inventory-service` on 8083):
+### 1. Environment Configuration
+Copy the example environment file or configure `.env`:
+```bash
+cp .env.example .env
+```
+
+Key environment variables in `.env`:
+| Variable | Description | Default |
+|---|---|---|
+| `OPS_COPILOT_PORT` | Backend HTTP API listen port | `8080` |
+| `OPS_COPILOT_ENV` | Environment mode (`development`, `staging`, `production`) | `development` |
+| `OPS_COPILOT_DB_PATH` | Path to SQLite database file | `./data/opscopilot.db` |
+| `OPS_COPILOT_AUTH_SECRET` | Mandatory Bearer token / HMAC secret (minimum 32 chars) | `dev-secret-key-must-be-at-least-32-chars-long!` |
+| `OPS_COPILOT_TOKEN_TTL_SECONDS` | Confirmation token expiration window | `60` |
+| `OPS_COPILOT_RATE_LIMIT_RPS` | Token bucket refill rate (req/s) | `20` |
+| `OPS_COPILOT_RATE_LIMIT_BURST` | Token bucket burst capacity | `40` |
+| `OPS_COPILOT_ALLOWED_ORIGINS` | Strict CORS origin whitelist | `http://localhost:5173,http://127.0.0.1:5173` |
+
+### 2. Start Monitored Microservices
+In a separate terminal, launch the 3 mock microservices (Payment, Auth, Inventory on ports `8081`, `8082`, `8083`):
 ```bash
 cd backend
 go run ./cmd/mockservices/main.go
 ```
 
-### 2. Start the Ops Co-pilot Backend
-In terminal 2, launch the Go backend server (port 8080):
+### 3. Start Backend Server
+In a separate terminal, start the primary Go REST API and WebMCP server:
 ```bash
 cd backend
 go run ./cmd/server/main.go
 ```
 
-### 3. Start the Frontend Dashboard
-In terminal 3, start the Vite development server (port 5173):
+### 4. Start Frontend Dashboard
+In a third terminal, install dependencies and launch the Vite dev server:
 ```bash
 cd frontend
+npm install
 npm run dev
 ```
 
@@ -98,34 +266,26 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ---
 
-## Running Tests
+## Running Verification Tests
 
-### Backend Unit & Adversarial Tests
-Execute all tests including 500-request concurrency, token replay attacks, expiration checks, parameter tampering, and metric sanitization:
+### Backend Unit & Integration Tests
 ```bash
 cd backend
 go test -v ./...
 ```
 
-### Go Vet & Linting
-```bash
-cd backend
-go vet ./...
-```
-
-### Frontend TypeScript & Bundle Validation
+### Frontend Typechecking & Linter
 ```bash
 cd frontend
+npm run lint
 npm run build
 ```
 
 ---
 
-## Deployment & Production Notes
+## Architecture
 
-1. **HTTPS Enforcement**: WebMCP requires a secure browsing context (`https://` or `localhost`).
-2. **Environment Variables**: Configure `.env` with a strong 32+ character `OPS_COPILOT_AUTH_SECRET` and appropriate database path.
-3. **Database**: The SQLite database file resides at `OPS_COPILOT_DB_PATH` (default: `./data/opscopilot.db`) using WAL mode for concurrent reader efficiency.
+For complete technical specifications on state machines, token buckets, single-use cryptographic tokens, secret scrubbing, and security boundaries, see [ARCHITECTURE.md](architecture.md).
 
 ---
 
