@@ -37,8 +37,8 @@ func NewServer(cfg *config.Config, handler *Handler) *Server {
 	mux.HandleFunc("/api/challenges/", s.handleChallengeRoute)
 	mux.HandleFunc("/api/actions/execute", s.handleActionExecute)
 
-	// Apply middleware stack: Recovery -> CORS -> Rate Limiting
-	handlerChain := RecoveryMiddleware(CORSMiddleware(cfg.AllowedOrigins)(RateLimitMiddleware(limiter)(mux)))
+	// Apply middleware stack: Recovery -> CORS -> Rate Limiting -> Auth Session Verification
+	handlerChain := RecoveryMiddleware(CORSMiddleware(cfg.AllowedOrigins)(RateLimitMiddleware(limiter)(AuthMiddleware(cfg.AuthSecret)(mux))))
 
 	s.httpServer = &http.Server{
 		Addr:              fmt.Sprintf(":%d", cfg.Port),
