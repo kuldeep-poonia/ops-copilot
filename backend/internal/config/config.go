@@ -12,23 +12,56 @@ import (
 
 // Config holds all validated configuration parameters required for running the backend service.
 type Config struct {
-	Port              int
-	Environment       string
-	DatabasePath      string
-	AuthSecret        string
-	TokenTTL          time.Duration
-	RateLimitRPS      float64
-	RateLimitBurst    int
-	ActionRateLimit   int
-	PaymentServiceKey string
-	AuthServiceKey    string
-	InventoryKey      string
-	AllowedOrigins    []string
+	Port                 int
+	Environment          string
+	DatabasePath         string
+	AuthSecret           string
+	TokenTTL             time.Duration
+	RateLimitRPS         float64
+	RateLimitBurst       int
+	ActionRateLimit      int
+	PaymentServiceKey    string
+	AuthServiceKey       string
+	InventoryKey         string
+	AllowedOrigins       []string
+	RenderAPIKey         string
+	RenderServiceID      string
+	MonitoredServiceURL  string
+	MonitoredServiceName string
+}
+
+// loadDotEnv parses a local .env file if present, populating process environment variables.
+func loadDotEnv() {
+	candidates := []string{".env", "../.env", "../../.env"}
+	for _, path := range candidates {
+		data, err := os.ReadFile(path)
+		if err == nil {
+			for _, line := range strings.Split(string(data), "\n") {
+				line = strings.TrimSpace(line)
+				if line == "" || strings.HasPrefix(line, "#") {
+					continue
+				}
+				parts := strings.SplitN(line, "=", 2)
+				if len(parts) == 2 {
+					key := strings.TrimSpace(parts[0])
+					val := strings.TrimSpace(parts[1])
+					val = strings.Trim(val, `"'`)
+					if os.Getenv(key) == "" {
+						_ = os.Setenv(key, val)
+					}
+				}
+			}
+			return
+		}
+	}
 }
 
 // Load reads and strictly validates configuration from the environment.
 // It fails fast if any required setting is missing or invalid.
 func Load() (*Config, error) {
+	// Auto-load .env if present in local workspace
+	loadDotEnv()
+
 	portStr := os.Getenv("PORT")
 	if portStr == "" {
 		portStr = getEnvOrDefault("OPS_COPILOT_PORT", "8080")
@@ -101,18 +134,22 @@ func Load() (*Config, error) {
 	}
 
 	cfg := &Config{
-		Port:              port,
-		Environment:       env,
-		DatabasePath:      dbPath,
-		AuthSecret:        authSecret,
-		TokenTTL:          time.Duration(ttlSeconds) * time.Second,
-		RateLimitRPS:      rps,
-		RateLimitBurst:    burst,
-		ActionRateLimit:   actionLimit,
-		PaymentServiceKey: getEnvOrDefault("OPS_COPILOT_SERVICE_PAYMENT_API_KEY", "dev-payment-key"),
-		AuthServiceKey:    getEnvOrDefault("OPS_COPILOT_SERVICE_AUTH_API_KEY", "dev-auth-key"),
-		InventoryKey:      getEnvOrDefault("OPS_COPILOT_SERVICE_INVENTORY_API_KEY", "dev-inventory-key"),
-		AllowedOrigins:    allowedOrigins,
+		Port:                 port,
+		Environment:          env,
+		DatabasePath:         dbPath,
+		AuthSecret:           authSecret,
+		TokenTTL:             time.Duration(ttlSeconds) * time.Second,
+		RateLimitRPS:         rps,
+		RateLimitBurst:       burst,
+		ActionRateLimit:      actionLimit,
+		PaymentServiceKey:    getEnvOrDefault("OPS_COPILOT_SERVICE_PAYMENT_API_KEY", "dev-payment-key"),
+		AuthServiceKey:       getEnvOrDefault("OPS_COPILOT_SERVICE_AUTH_API_KEY", "dev-auth-key"),
+		InventoryKey:         getEnvOrDefault("OPS_COPILOT_SERVICE_INVENTORY_API_KEY", "dev-inventory-key"),
+		AllowedOrigins:       allowedOrigins,
+		RenderAPIKey:         os.Getenv("RENDER_API_KEY"),
+		RenderServiceID:      os.Getenv("RENDER_SERVICE_ID"),
+		MonitoredServiceURL:  os.Getenv("MONITORED_SERVICE_URL"),
+		MonitoredServiceName: getEnvOrDefault("MONITORED_SERVICE_NAME", "Social Publishing MCP Server"),
 	}
 
 	return cfg, nil

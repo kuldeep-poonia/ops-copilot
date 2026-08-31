@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"ops-copilot/backend/internal/alerts"
@@ -213,13 +214,21 @@ func (e *Executor) executeRestartService(ctx context.Context, req models.ActionE
 	unlock := e.guardrail.AcquireServiceLock(service.ID)
 	defer unlock()
 
-	// Call the real service control API
+	// Call the real service control API (supports both custom REST and Render API)
 	controlURL := fmt.Sprintf("%s/restart", service.ControlAPIURL)
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, controlURL, nil)
+	if strings.Contains(service.ControlAPIURL, "api.render.com") {
+		controlURL = fmt.Sprintf("%s/deploys", strings.TrimSuffix(service.ControlAPIURL, "/restart"))
+	}
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, controlURL, bytes.NewBuffer([]byte(`{}`)))
 	if err != nil {
 		return nil, err
 	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Accept", "application/json")
 	httpReq.Header.Set("X-API-Key", service.ControlAPIKey)
+	if service.ControlAPIKey != "" {
+		httpReq.Header.Set("Authorization", "Bearer "+service.ControlAPIKey)
+	}
 
 	resp, err := e.httpClient.Do(httpReq)
 	if err != nil {
@@ -351,13 +360,17 @@ func (e *Executor) executeScaleService(ctx context.Context, req models.ActionExe
 
 	// Call the real service control API
 	controlURL := fmt.Sprintf("%s/scale", service.ControlAPIURL)
-	payload, _ := json.Marshal(map[string]int{"replicas": targetReplicas})
+	payload, _ := json.Marshal(map[string]int{"replicas": targetReplicas, "numInstances": targetReplicas})
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, controlURL, bytes.NewReader(payload))
 	if err != nil {
 		return nil, err
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Accept", "application/json")
 	httpReq.Header.Set("X-API-Key", service.ControlAPIKey)
+	if service.ControlAPIKey != "" {
+		httpReq.Header.Set("Authorization", "Bearer "+service.ControlAPIKey)
+	}
 
 	resp, err := e.httpClient.Do(httpReq)
 	if err != nil {

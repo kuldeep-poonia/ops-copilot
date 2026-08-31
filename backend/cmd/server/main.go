@@ -3,10 +3,12 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -18,6 +20,7 @@ import (
 	"ops-copilot/backend/internal/executor"
 	"ops-copilot/backend/internal/guardrail"
 	"ops-copilot/backend/internal/metrics"
+	"ops-copilot/backend/internal/models"
 	"ops-copilot/backend/internal/registry"
 )
 
@@ -37,8 +40,36 @@ func main() {
 	defer cancel()
 
 	reg := registry.NewRegistry(db)
-	if err := reg.SeedDefaultServices(ctx); err != nil {
-		log.Fatalf("Failed to initialize service registry seeds: %v", err)
+	if cfg.MonitoredServiceURL != "" {
+		serviceID := "social-mcp"
+		if cfg.RenderServiceID != "" {
+			serviceID = cfg.RenderServiceID
+		}
+		controlURL := fmt.Sprintf("https://api.render.com/v1/services/%s", cfg.RenderServiceID)
+		if cfg.RenderServiceID == "" {
+			controlURL = strings.TrimSuffix(cfg.MonitoredServiceURL, "/") + "/control"
+		}
+		name := cfg.MonitoredServiceName
+		if name == "" {
+			name = "Social Publishing MCP Server"
+		}
+		err := reg.RegisterService(ctx, models.Service{
+			ID:            serviceID,
+			Name:          name,
+			Description:   fmt.Sprintf("Live monitored service deployed on %s", cfg.MonitoredServiceURL),
+			EndpointURL:   strings.TrimSuffix(cfg.MonitoredServiceURL, "/") + "/metrics",
+			ControlAPIURL: controlURL,
+			ControlAPIKey: cfg.RenderAPIKey,
+			CurrentStatus: "healthy",
+			Replicas:      1,
+			MinReplicas:   1,
+			MaxReplicas:   5,
+		})
+		if err != nil {
+			log.Printf("Warning: failed to auto-register monitored service: %v", err)
+		} else {
+			log.Printf("Successfully registered monitored service %q (%s)", name, serviceID)
+		}
 	}
 
 	metricsAdapter := metrics.NewHTTPCollector()
