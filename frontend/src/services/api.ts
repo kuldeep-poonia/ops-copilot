@@ -8,12 +8,14 @@ import type {
 } from '../types';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+const AUTH_SECRET = import.meta.env.VITE_AUTH_SECRET || 'dev-secret-key-must-be-at-least-32-chars-long!';
 
 async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      'Authorization': `Bearer ${AUTH_SECRET}`,
       'X-Session-ID': 'ops-web-session',
       ...(options?.headers || {}),
     },
