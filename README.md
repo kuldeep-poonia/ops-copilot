@@ -351,6 +351,80 @@ npm run build
 
 ---
 
+## Operator & AI Agent User Guide
+
+### 1. For Human Operators (SREs & Engineers)
+
+- **2-Second Infrastructure Hero:** Glance at the top banner immediately on load. A green calm banner signifies 100% nominal operation across all services; an amber/red banner immediately flags degraded services and active incidents.
+- **Incident Triage & Collaboration:**
+  - View real-time firing alerts under the **Alerts** tab.
+  - Click **Acknowledge** to take ownership and halt alert escalation.
+  - Post diagnostic observations using **Add Note** to preserve an incident timeline.
+- **Human Confirmation Guardrail Modal:**
+  - When an AI agent proposes a high-risk mutation (`restart_service` or `scale_service`), the backend intercepts the request and returns `HTTP 428 Precondition Required`.
+  - The dashboard displays a dedicated **Confirmation Dialog** showing the target service, the AI's stated technical rationale, and the consequence of declining.
+  - Clicking **"Approve & Execute"** generates a single-use SHA-256 bound confirmation token with a 60-second TTL that authorizes the backend to invoke the real Render / cloud provider API.
+- **Immutable Audit Trail:** Review the chronological audit ledger under the **Audit Log** tab, visually distinguishing `🤖 Agent` actions (blue badge) from `👤 Human` approvals (neutral badge) with full secret scrubbing.
+
+---
+
+### 2. For AI Agents (ChatGPT In-App Browser, Chrome WebMCP, Claude)
+
+When an AI agent navigates to the live dashboard URL ([https://ops-copilot-two.vercel.app](https://ops-copilot-two.vercel.app)), it discovers the 7 registered tools directly via `document.modelContext.registerTool(...)`.
+
+#### Sample AI Prompts & Real-World Interaction Scenarios
+
+| Scenario | Sample User Prompt | WebMCP Tool Invoked | Expected Behavior |
+|---|---|---|---|
+| **Health Check** | *"Is everything healthy with my Social Publishing MCP Server?"* | `get_service_health` | Agent fetches live metrics from backend and summarizes status, error rates, and CPU/memory usage. |
+| **Alert Triage** | *"Show me all firing alerts and acknowledge any CPU warnings."* | `list_active_alerts` & `acknowledge_alert` | Agent lists incidents, acknowledges the alert with reason, and logs diagnostic findings. |
+| **Incident Investigation** | *"Add a note to the incident that we inspected logs and database queries are fast."* | `add_incident_note` | Agent appends a timestamped note to the alert timeline. |
+| **High-Risk Remediation** | *"Restart the Social Publishing MCP Server to clear high memory consumption."* | `restart_service` | Tool call triggers `HTTP 428` challenge; agent asks human to click "Approve" on the dashboard; once approved, agent executes restart via Render API. |
+| **Capacity Scaling** | *"Scale the service to 3 replicas for upcoming flash traffic."* | `scale_service` | Triggers human confirmation challenge; upon human sign-off, scales live instance count. |
+
+---
+
+## Production Deployment & Topology
+
+```
+┌────────────────────────────────────────────────────────┐
+│                   Vercel Global CDN                    │
+│    https://ops-copilot-two.vercel.app (React 19 + Vite)│
+└───────────────────────────┬────────────────────────────┘
+                            │ WebMCP Tool Calls & HTTPS API
+                            ▼
+┌────────────────────────────────────────────────────────┐
+│                 Render Cloud Platform                  │
+│       https://ops-copilot-nspl.onrender.com (Go API)   │
+│  - Pure Go 1.22 REST & Guardrail Engine                │
+│  - Embedded SQLite (WAL Mode, zero network latency)    │
+│  - Token Bucket Rate Limiting (20 rps / 40 burst)      │
+└───────────────────────────┬────────────────────────────┘
+                            │
+            ┌───────────────┴───────────────┐
+            │ Live Telemetry & Control API   │ Render API Deploys
+            ▼                               ▼
+┌───────────────────────────┐   ┌───────────────────────────┐
+│ Real Monitored Service    │   │ Render Infrastructure API │
+│ social-mcp.duckdns.org    │   │ api.render.com/v1         │
+│ (Live MCP Server)         │   │ (Container Orchestration) │
+└───────────────────────────┘   └───────────────────────────┘
+```
+
+---
+
+## Database Architecture: Embedded SQLite (WAL Mode)
+
+Ops Co-pilot uses an embedded **SQLite 3 database with Write-Ahead Logging (WAL Mode)** via the pure Go `modernc.org/sqlite` driver.
+
+### Why SQLite is the Optimal Production Choice for Ops Co-pilot:
+1. **Zero External Dependency Failure:** As an observability & incident remediation gateway, Ops Co-pilot must remain operational even when external cloud databases experience regional outages.
+2. **Sub-Millisecond Read Latency:** SQLite in WAL mode delivers sub-millisecond query performance with concurrent reader concurrency, perfectly suited for rapid telemetry queries and audit writes.
+3. **Cryptographic Token Safety:** Token validation and atomic consumption execute within localized database transactions, guaranteeing zero race conditions on single-use authorization challenges.
+4. **When to Migrate to Supabase (PostgreSQL):** If you scale the Go backend across multiple geographic regions with horizontal clustering behind a distributed load balancer, the repository layer (`backend/internal/database/`) can be switched to Supabase PostgreSQL with zero changes to business logic or WebMCP tools.
+
+---
+
 ## Architecture & Security Highlights
 
 For detailed system topology, WebMCP interaction sequence diagrams, cryptographic state machines, and database entity models, see **[ARCHITECTURE.md](ARCHITECTURE.md)**.
