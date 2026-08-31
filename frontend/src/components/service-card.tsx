@@ -28,7 +28,6 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({
   const [showScaleModal, setShowScaleModal] = useState<boolean>(false);
 
   const status = health?.status || service.currentStatus || 'healthy';
-  const isHealthy = status === 'healthy';
   const isDegraded = status === 'degraded';
   const isRestarting = status === 'restarting';
   const isDown = status === 'down' || status === 'unhealthy';
