@@ -23,6 +23,7 @@ type Config struct {
 	PaymentServiceKey string
 	AuthServiceKey    string
 	InventoryKey      string
+	AllowedOrigins    []string
 }
 
 // Load reads and strictly validates configuration from the environment.
@@ -88,6 +89,14 @@ func Load() (*Config, error) {
 		}
 	}
 
+	originsRaw := getEnvOrDefault("OPS_COPILOT_ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173,http://localhost:8080,http://127.0.0.1:8080")
+	var allowedOrigins []string
+	for _, orig := range strings.Split(originsRaw, ",") {
+		if trimmed := strings.TrimSpace(orig); trimmed != "" {
+			allowedOrigins = append(allowedOrigins, trimmed)
+		}
+	}
+
 	cfg := &Config{
 		Port:              port,
 		Environment:       env,
@@ -100,6 +109,7 @@ func Load() (*Config, error) {
 		PaymentServiceKey: getEnvOrDefault("OPS_COPILOT_SERVICE_PAYMENT_API_KEY", "dev-payment-key"),
 		AuthServiceKey:    getEnvOrDefault("OPS_COPILOT_SERVICE_AUTH_API_KEY", "dev-auth-key"),
 		InventoryKey:      getEnvOrDefault("OPS_COPILOT_SERVICE_INVENTORY_API_KEY", "dev-inventory-key"),
+		AllowedOrigins:    allowedOrigins,
 	}
 
 	return cfg, nil
