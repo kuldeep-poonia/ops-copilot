@@ -7,8 +7,10 @@ Ops Co-pilot doesn't add its own AI — it gives any AI agent already in your br
 ---
 
 ## Live Demo
-- **Dashboard URL:** [http://localhost:5173](http://localhost:5173) *(Local development)*
-- **API Endpoint:** [http://localhost:8080/api](http://localhost:8080/api)
+- **Live Dashboard (Vercel):** [https://ops-copilot-two.vercel.app](https://ops-copilot-two.vercel.app)
+- **Production API (Render):** [https://ops-copilot-nspl.onrender.com](https://ops-copilot-nspl.onrender.com)
+- **Monitored Service:** [https://social-mcp.duckdns.org](https://social-mcp.duckdns.org)
+- **Local Dev URL:** [http://localhost:5173](http://localhost:5173)
 
 ---
 
