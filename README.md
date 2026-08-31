@@ -1,5 +1,11 @@
 # Ops Co-pilot
 
+[![CI Pipeline](https://github.com/kuldeep-poonia/ops-copilot/actions/workflows/ci.yml/badge.svg)](https://github.com/kuldeep-poonia/ops-copilot/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go)](https://go.dev)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)](https://react.dev)
+[![WebMCP](https://img.shields.io/badge/WebMCP-7_Tools-0071E3)](https://github.com/kuldeep-poonia/ops-copilot#webmcp-tools)
+
 > An AI-friendly observability and incident remediation dashboard that allows autonomous web agents to inspect infrastructure telemetry and execute operational actions with cryptographic human-in-the-loop guardrails.
 
 Ops Co-pilot doesn't add its own AI — it gives any AI agent already in your browser a safe, structured way to check on and operate your real infrastructure, with a human always in control of anything risky.
