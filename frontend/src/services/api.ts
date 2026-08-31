@@ -7,7 +7,8 @@ import type {
   ActionExecutionResponse,
 } from '../types';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+const rawApiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8080/api').trim().replace(/\/+$/, '');
+const API_BASE = rawApiUrl.endsWith('/api') ? rawApiUrl : `${rawApiUrl}/api`;
 const AUTH_SECRET = import.meta.env.VITE_AUTH_SECRET || 'dev-secret-key-must-be-at-least-32-chars-long!';
 
 async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
