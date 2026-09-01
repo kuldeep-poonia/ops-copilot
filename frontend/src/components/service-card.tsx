@@ -9,6 +9,8 @@ import {
   AlertCircle,
   Sliders,
   Trash2,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import type { Service, ServiceHealth } from '../types';
 
@@ -29,6 +31,16 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({
 }) => {
   const [scaleValue, setScaleValue] = useState<number>(service.replicas);
   const [showScaleModal, setShowScaleModal] = useState<boolean>(false);
+  const [revealId, setRevealId] = useState<boolean>(false);
+
+  const formatServiceId = (id: string) => {
+    if (revealId || !id) return id;
+    if (id.length > 10) {
+      const prefix = id.startsWith('srv-') ? 'srv-' : id.slice(0, 3);
+      return `${prefix}••••••${id.slice(-4)}`;
+    }
+    return id;
+  };
 
   const status = health?.status || service.currentStatus || 'healthy';
   const isDegraded = status === 'degraded';
@@ -93,7 +105,19 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({
           </div>
           <div>
             <h3 className="text-base font-semibold text-[#1D1D1F] leading-tight">{service.name}</h3>
-            <span className="text-xs text-[#6E6E73] font-mono">{service.id}</span>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className="text-xs text-[#6E6E73] font-mono tracking-tight">{formatServiceId(service.id)}</span>
+              {service.id.length > 10 && (
+                <button
+                  type="button"
+                  onClick={() => setRevealId(!revealId)}
+                  className="p-0.5 rounded text-[#86868B] hover:text-[#1D1D1F] hover:bg-[#F5F5F7] transition-colors cursor-pointer"
+                  title={revealId ? 'Mask Service ID' : 'Reveal full Service ID'}
+                >
+                  {revealId ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -111,7 +135,11 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({
         </div>
       </div>
 
-      <p className="text-xs text-[#6E6E73] mb-4 line-clamp-2">{service.description}</p>
+      <p className="text-xs text-[#6E6E73] mb-4 line-clamp-2">
+        {service.description.startsWith('Live monitored service deployed on')
+          ? 'Production microservice with live telemetry & WebMCP guardrails'
+          : service.description}
+      </p>
 
       {/* Primary Metrics Grid */}
       <div className="grid grid-cols-2 gap-2.5 mb-4">
