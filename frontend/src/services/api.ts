@@ -7,63 +7,97 @@ import type {
   ActionExecutionResponse,
 } from '../types';
 
-const rawApiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8080/api').trim().replace(/\/+$/, '');
-const API_BASE = rawApiUrl.endsWith('/api') ? rawApiUrl : `${rawApiUrl}/api`;
 const AUTH_SECRET = import.meta.env.VITE_AUTH_SECRET || 'fDgc79JLz99saSejHavvaRF5oHttczyX6KBxNmjzw8U=';
 
-async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${AUTH_SECRET}`,
-      'X-Session-ID': 'ops-web-session',
-      ...(options?.headers || {}),
-    },
-  });
+function getApiBases(): string[] {
+  const bases: string[] = [];
+  const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
-  // HTTP 428 Precondition Required carries a valid confirmation challenge response
-  if (response.status === 428) {
-    return response.json() as Promise<T>;
+  if (isLocal) {
+    bases.push('http://localhost:8080/api');
   }
 
-  if (!response.ok) {
-    let errorMsg = `HTTP ${response.status}: ${response.statusText}`;
+  const rawEnv = (import.meta.env.VITE_API_URL || '').trim().replace(/\/+$/, '');
+  if (rawEnv) {
+    const formatted = rawEnv.endsWith('/api') ? rawEnv : `${rawEnv}/api`;
+    if (!bases.includes(formatted)) bases.push(formatted);
+  }
+
+  const defaultProd = 'https://ops-copilot-nspl.onrender.com/api';
+  if (!bases.includes(defaultProd)) bases.push(defaultProd);
+
+  return bases;
+}
+
+async function fetchJSON<T>(path: string, options?: RequestInit): Promise<T> {
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  const bases = getApiBases();
+  let lastError: Error | null = null;
+
+  for (let i = 0; i < bases.length; i++) {
+    const url = `${bases[i]}${cleanPath}`;
     try {
-      const data = await response.json();
-      if (data.error) {
-        errorMsg = data.error;
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${AUTH_SECRET}`,
+          'X-Session-ID': 'ops-web-session',
+          ...(options?.headers || {}),
+        },
+      });
+
+      if (response.status === 428) {
+        return response.json() as Promise<T>;
       }
-    } catch {
-      // Ignored if non-JSON error
+
+      if (!response.ok) {
+        let errorMsg = `HTTP ${response.status}: ${response.statusText}`;
+        try {
+          const data = await response.json();
+          if (data.error) errorMsg = data.error;
+        } catch {
+          // Non-JSON error
+        }
+        throw new Error(errorMsg);
+      }
+
+      return response.json() as Promise<T>;
+    } catch (err: unknown) {
+      const errObj = err instanceof Error ? err : new Error(String(err));
+      lastError = errObj;
+      // If it was a network error ("Failed to fetch"), continue loop to next candidate API base
+      if (errObj.message.includes('Failed to fetch') && i < bases.length - 1) {
+        continue;
+      }
+      throw errObj;
     }
-    throw new Error(errorMsg);
   }
 
-  return response.json() as Promise<T>;
+  throw lastError || new Error('Network request failed across all API endpoints');
 }
 
 export const api = {
   async listServices(): Promise<Service[]> {
-    const data = await fetchJSON<{ services: Service[] }>(`${API_BASE}/services`);
+    const data = await fetchJSON<{ services: Service[] }>('/services');
     return data.services || [];
   },
 
   async registerService(service: Partial<Service>): Promise<{ status: string; service: Service }> {
-    return fetchJSON<{ status: string; service: Service }>(`${API_BASE}/services`, {
+    return fetchJSON<{ status: string; service: Service }>('/services', {
       method: 'POST',
       body: JSON.stringify(service),
     });
   },
 
   async deleteService(serviceId: string): Promise<{ status: string; serviceId: string }> {
-    return fetchJSON<{ status: string; serviceId: string }>(`${API_BASE}/services/${serviceId}`, {
+    return fetchJSON<{ status: string; serviceId: string }>(`/services/${serviceId}`, {
       method: 'DELETE',
     });
   },
 
   async getServiceHealth(serviceId: string): Promise<ServiceHealth> {
-    return fetchJSON<ServiceHealth>(`${API_BASE}/services/${serviceId}/health`);
+    return fetchJSON<ServiceHealth>(`/services/${serviceId}/health`);
   },
 
   async listAlerts(serviceId?: string, status?: string): Promise<Alert[]> {
@@ -71,19 +105,19 @@ export const api = {
     if (serviceId) params.append('serviceId', serviceId);
     if (status) params.append('status', status);
     const query = params.toString() ? `?${params.toString()}` : '';
-    const data = await fetchJSON<{ alerts: Alert[] }>(`${API_BASE}/alerts${query}`);
+    const data = await fetchJSON<{ alerts: Alert[] }>(`/alerts${query}`);
     return data.alerts || [];
   },
 
   async acknowledgeAlert(alertId: string, actor: string = 'operator', reason?: string): Promise<ActionExecutionResponse> {
-    return fetchJSON<ActionExecutionResponse>(`${API_BASE}/alerts/${alertId}/acknowledge`, {
+    return fetchJSON<ActionExecutionResponse>(`/alerts/${alertId}/acknowledge`, {
       method: 'POST',
       body: JSON.stringify({ actor, reason }),
     });
   },
 
   async addIncidentNote(alertId: string, author: string, content: string): Promise<ActionExecutionResponse> {
-    return fetchJSON<ActionExecutionResponse>(`${API_BASE}/alerts/${alertId}/notes`, {
+    return fetchJSON<ActionExecutionResponse>(`/alerts/${alertId}/notes`, {
       method: 'POST',
       body: JSON.stringify({ author, content }),
     });
@@ -95,15 +129,15 @@ export const api = {
       offset: offset.toString(),
     });
     if (serviceId) params.append('serviceId', serviceId);
-    return fetchJSON<{ entries: AuditEntry[]; total: number }>(`${API_BASE}/audit-log?${params.toString()}`);
+    return fetchJSON<{ entries: AuditEntry[]; total: number }>(`/audit-log?${params.toString()}`);
   },
 
   async getChallenge(challengeId: string): Promise<ConfirmationChallenge> {
-    return fetchJSON<ConfirmationChallenge>(`${API_BASE}/challenges/${challengeId}`);
+    return fetchJSON<ConfirmationChallenge>(`/challenges/${challengeId}`);
   },
 
   async reviewChallenge(challengeId: string, approved: boolean, reviewer: string = 'operator'): Promise<{ approved: boolean; confirmationToken?: string; message: string }> {
-    return fetchJSON<{ approved: boolean; confirmationToken?: string; message: string }>(`${API_BASE}/challenges/${challengeId}/review`, {
+    return fetchJSON<{ approved: boolean; confirmationToken?: string; message: string }>(`/challenges/${challengeId}/review`, {
       method: 'POST',
       body: JSON.stringify({ challengeId, approved, reviewer }),
     });
@@ -117,7 +151,7 @@ export const api = {
     confirmationToken?: string,
     initiator: string = 'human'
   ): Promise<ActionExecutionResponse> {
-    return fetchJSON<ActionExecutionResponse>(`${API_BASE}/actions/execute`, {
+    return fetchJSON<ActionExecutionResponse>('/actions/execute', {
       method: 'POST',
       body: JSON.stringify({
         serviceId,

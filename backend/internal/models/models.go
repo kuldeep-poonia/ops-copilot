@@ -21,7 +21,7 @@ type Service struct {
 	Description    string    `json:"description"`
 	EndpointURL    string    `json:"endpointUrl"`
 	ControlAPIURL  string    `json:"controlApiUrl"`
-	ControlAPIKey  string    `json:"-"` // Omit sensitive control key from API JSON
+	ControlAPIKey  string    `json:"controlApiKey,omitempty"`
 	CurrentStatus  string    `json:"currentStatus"`
 	Replicas       int       `json:"replicas"`
 	MinReplicas    int       `json:"minReplicas"`
