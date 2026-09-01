@@ -217,7 +217,7 @@ func (e *Executor) executeRestartService(ctx context.Context, req models.ActionE
 	// Call the real service control API (supports both custom REST and Render API)
 	controlURL := fmt.Sprintf("%s/restart", service.ControlAPIURL)
 	if strings.Contains(service.ControlAPIURL, "api.render.com") {
-		controlURL = fmt.Sprintf("%s/deploys", strings.TrimSuffix(service.ControlAPIURL, "/restart"))
+		controlURL = fmt.Sprintf("https://api.render.com/v1/services/%s/deploys", service.ID)
 	}
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, controlURL, bytes.NewBuffer([]byte(`{}`)))
 	if err != nil {
@@ -262,6 +262,26 @@ func (e *Executor) executeRestartService(ctx context.Context, req models.ActionE
 		return nil, fmt.Errorf("%w: HTTP %d %s", ErrControlAPIFailed, resp.StatusCode, string(bodyBytes))
 	}
 
+	var renderData map[string]interface{}
+	_ = json.Unmarshal(bodyBytes, &renderData)
+
+	execResult := map[string]interface{}{
+		"serviceId":        service.ID,
+		"serviceName":      service.Name,
+		"action":           "restart",
+		"timestamp":        time.Now().UTC().Format(time.RFC3339),
+		"renderStatusCode": resp.StatusCode,
+	}
+	if depID, ok := renderData["id"].(string); ok {
+		execResult["renderDeployId"] = depID
+	}
+	if status, ok := renderData["status"].(string); ok {
+		execResult["renderStatus"] = status
+	}
+	if reqID := resp.Header.Get("render-request-id"); reqID != "" {
+		execResult["renderRequestId"] = reqID
+	}
+
 	_ = e.registry.UpdateServiceStatus(ctx, service.ID, "restarting")
 
 	_ = e.auditLogger.Record(ctx, models.AuditEntry{
@@ -274,15 +294,10 @@ func (e *Executor) executeRestartService(ctx context.Context, req models.ActionE
 	})
 
 	return &models.ActionExecutionResponse{
-		Success: true,
-		Status:  "executed",
-		Message: fmt.Sprintf("Service %s restart initiated successfully", service.Name),
-		ExecutionResult: map[string]interface{}{
-			"serviceId":   service.ID,
-			"serviceName": service.Name,
-			"action":      "restart",
-			"timestamp":   time.Now().UTC().Format(time.RFC3339),
-		},
+		Success:         true,
+		Status:          "executed",
+		Message:         fmt.Sprintf("Service %s restart initiated successfully via Render API", service.Name),
+		ExecutionResult: execResult,
 	}, nil
 }
 
