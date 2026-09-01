@@ -3,12 +3,10 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
@@ -20,7 +18,6 @@ import (
 	"ops-copilot/backend/internal/executor"
 	"ops-copilot/backend/internal/guardrail"
 	"ops-copilot/backend/internal/metrics"
-	"ops-copilot/backend/internal/models"
 	"ops-copilot/backend/internal/registry"
 )
 
@@ -36,42 +33,7 @@ func main() {
 	}
 	defer db.Close()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
 	reg := registry.NewRegistry(db)
-	if cfg.MonitoredServiceURL != "" {
-		serviceID := "monitored-service"
-		if cfg.RenderServiceID != "" {
-			serviceID = cfg.RenderServiceID
-		}
-		controlURL := fmt.Sprintf("https://api.render.com/v1/services/%s", serviceID)
-		if cfg.RenderServiceID == "" {
-			controlURL = strings.TrimSuffix(cfg.MonitoredServiceURL, "/") + "/control"
-		}
-		name := cfg.MonitoredServiceName
-		if name == "" {
-			name = "Monitored Microservice"
-		}
-		err := reg.RegisterService(ctx, models.Service{
-			ID:            serviceID,
-			Name:          name,
-			Description:   fmt.Sprintf("Live monitored service deployed on %s", cfg.MonitoredServiceURL),
-			EndpointURL:   strings.TrimSuffix(cfg.MonitoredServiceURL, "/") + "/metrics",
-			ControlAPIURL: controlURL,
-			ControlAPIKey: cfg.RenderAPIKey,
-			CurrentStatus: "healthy",
-			Replicas:      1,
-			MinReplicas:   1,
-			MaxReplicas:   5,
-		})
-		if err != nil {
-			log.Printf("Warning: failed to auto-register monitored service: %v", err)
-		} else {
-			log.Printf("Successfully registered monitored service %q (%s)", name, serviceID)
-		}
-	}
-
 	metricsAdapter := metrics.NewHTTPCollector()
 	alertEngine := alerts.NewEngine(db)
 	auditLogger := audit.NewLogger(db)

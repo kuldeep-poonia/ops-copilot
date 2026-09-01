@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -215,19 +216,29 @@ func (e *Executor) executeRestartService(ctx context.Context, req models.ActionE
 	defer unlock()
 
 	// Call the real service control API (supports both custom REST and Render API)
-	controlURL := fmt.Sprintf("%s/restart", service.ControlAPIURL)
-	if strings.Contains(service.ControlAPIURL, "api.render.com") {
-		controlURL = fmt.Sprintf("https://api.render.com/v1/services/%s/deploys", service.ID)
+	controlURL := strings.TrimRight(service.ControlAPIURL, "/")
+	if strings.Contains(controlURL, "api.render.com") {
+		if !strings.HasSuffix(controlURL, "/deploys") && !strings.HasSuffix(controlURL, "/restart") {
+			controlURL = fmt.Sprintf("%s/deploys", controlURL)
+		}
+	} else if !strings.HasSuffix(controlURL, "/restart") && !strings.HasSuffix(controlURL, "/deploys") {
+		controlURL = fmt.Sprintf("%s/restart", controlURL)
 	}
+
+	apiKey := service.ControlAPIKey
+	if apiKey == "" {
+		apiKey = os.Getenv("RENDER_API_KEY")
+	}
+
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, controlURL, bytes.NewBuffer([]byte(`{}`)))
 	if err != nil {
 		return nil, err
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Accept", "application/json")
-	httpReq.Header.Set("X-API-Key", service.ControlAPIKey)
-	if service.ControlAPIKey != "" {
-		httpReq.Header.Set("Authorization", "Bearer "+service.ControlAPIKey)
+	if apiKey != "" {
+		httpReq.Header.Set("X-API-Key", apiKey)
+		httpReq.Header.Set("Authorization", "Bearer "+apiKey)
 	}
 
 	resp, err := e.httpClient.Do(httpReq)

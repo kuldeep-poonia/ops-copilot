@@ -35,22 +35,37 @@ export const RegisterServiceDialog: React.FC<RegisterServiceDialogProps> = ({
     }
     clean = clean.replace(/\/+$/, '');
 
+    // Special case for Social MCP or Render hosted services
+    if (clean.includes('social-mcp') || clean.includes('social-publish-mcp')) {
+      return {
+        name: 'Social Publishing MCP Server',
+        id: 'social-mcp',
+        metricsUrl: clean.endsWith('/metrics') ? clean : `${clean}/metrics`,
+        controlUrl: 'https://api.render.com/v1/services/srv-da76eg0ae00c73ar5vr0',
+        rawUrl: clean,
+      };
+    }
+
     try {
       const parsed = new URL(clean);
       const host = parsed.hostname;
+
+      // Detect Render dashboard/api URL
+      const srvMatch = clean.match(/srv-[a-z0-9]+/i);
+      const renderControlUrl = srvMatch ? `https://api.render.com/v1/services/${srvMatch[0]}` : `${clean}/control`;
+
       const sub = host.split('.')[0] || 'service';
       const formattedName = sub
         .split(/[-_]/)
         .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
         .join(' ') + (sub.includes('mcp') ? '' : ' Service');
 
-      const id = sub.toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 32);
+      const id = srvMatch ? srvMatch[0] : sub.toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 32);
       const metricsUrl = clean.endsWith('/metrics') ? clean : `${clean}/metrics`;
-      const controlUrl = `${clean}/control`;
 
-      return { name: formattedName, id, metricsUrl, controlUrl, rawUrl: clean };
+      return { name: formattedName, id, metricsUrl, controlUrl: renderControlUrl, rawUrl: clean };
     } catch {
-      return { name: clean, id: 'custom-svc', metricsUrl: clean, controlUrl: clean, rawUrl: clean };
+      return { name: clean, id: 'custom-svc', metricsUrl: clean, controlUrl: `${clean}/control`, rawUrl: clean };
     }
   };
 
