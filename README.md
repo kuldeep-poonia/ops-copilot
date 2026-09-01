@@ -21,9 +21,9 @@ Ops Co-pilot doesn't add its own AI — it gives any AI agent already in your br
 
 ---
 
-## 🧪 Quick Test & Judge Evaluation Guide (1-Minute Walkthrough)
+## 🚀 Quick Start & User Guide
 
-Judges and developers can evaluate Ops Co-pilot using either the **In-App WebMCP Console** (zero setup) or the **Native Chrome WebMCP Testing API**:
+Users and developers can interact with Ops Co-pilot using either the **In-App WebMCP Console** or the **Native Browser WebMCP API**:
 
 ### Option 1: In-App WebMCP Playground (Zero Setup ⭐)
 1. Open the live dashboard: [**https://ops-copilot-two.vercel.app**](https://ops-copilot-two.vercel.app)
