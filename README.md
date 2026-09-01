@@ -12,60 +12,6 @@ Ops Co-pilot doesn't add its own AI — it gives any AI agent already in your br
 
 ---
 
-## Live Demo
-- **Live Dashboard (Vercel):** [https://ops-copilot-two.vercel.app](https://ops-copilot-two.vercel.app)
-- **Production API (Render):** [https://ops-copilot-nspl.onrender.com](https://ops-copilot-nspl.onrender.com)
-- **Monitored Service:** [https://social-mcp.duckdns.org](https://social-mcp.duckdns.org)
-- **Demo Video (1080p MP4):** [assets/ops-copilot-demo-video.mp4](assets/ops-copilot-demo-video.mp4)
-- **Local Dev URL:** [http://localhost:5173](http://localhost:5173)
-
----
-
-## 🚀 Quick Start & User Guide
-
-Users and developers can interact with Ops Co-pilot using either the **In-App WebMCP Console** or the **Native Browser WebMCP API**:
-
-### Option 1: In-App WebMCP Playground (Zero Setup ⭐)
-1. Open the live dashboard: [**https://ops-copilot-two.vercel.app**](https://ops-copilot-two.vercel.app)
-2. Click the **"WebMCP Agent Console"** tab.
-3. Select **`get_service_health`** and click **"Invoke WebMCP Tool"** $\rightarrow$ Instant live telemetry JSON is returned.
-4. Select **`restart_service`**, enter a reason (*"Testing WebMCP guardrail"*), and click **"Invoke WebMCP Tool"**.
-5. 👉 **The Guardrail in Action:** The backend responds with `HTTP 428 Precondition Required`, popping up the **Human Confirmation Dialog Modal** on your screen. Click **"Approve & Execute"** to authorize the action.
-6. Switch to the **"Audit Log"** tab to see the permanent, cryptographic audit record of the execution.
-
-### Option 2: Native Chrome WebMCP Testing API (`chrome://flags`)
-1. Enable WebMCP in Google Chrome by setting `chrome://flags/#enable-webmcp-testing` to **Enabled** and relaunching Chrome.
-2. Navigate to [**https://ops-copilot-two.vercel.app**](https://ops-copilot-two.vercel.app).
-3. Press **`F12`** to open the DevTools Console, and run:
-```javascript
-// 1. Discover all 7 registered WebMCP tools
-await navigator.modelContextTesting.listTools()
-
-// 2. Execute read-only telemetry inspection
-await navigator.modelContextTesting.executeTool("get_service_health", JSON.stringify({serviceId: "social-mcp"}))
-
-// 3. Trigger a high-risk mutation (triggers on-screen confirmation modal!)
-await navigator.modelContextTesting.executeTool("restart_service", JSON.stringify({serviceId: "social-mcp", reason: "Testing WebMCP guardrail flow"}))
-```
-
-### Option 3: Register Your Own Custom Service via REST API 🔌
-Any developer can monitor their own microservice dynamically by issuing a single API call:
-```bash
-curl -X POST https://ops-copilot-nspl.onrender.com/api/services \
-  -H "Authorization: Bearer <API_TOKEN>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "id": "my-service",
-    "name": "My Production Microservice",
-    "endpointUrl": "https://api.mycompany.com/health",
-    "controlApiUrl": "https://api.render.com/v1/services/srv-xxxxxx",
-    "controlApiKey": "rnd_xxxxxx",
-    "replicas": 1
-  }'
-```
-
----
-
 ## What Problem Does It Solve?
 
 When AI agents are given operational control over infrastructure, traditional dashboards either lock them out completely or give them unrestricted write access that risks catastrophic production outages. 
@@ -117,6 +63,61 @@ flowchart TD
     K --> L
     
     L --> M["📜 Action recorded to Immutable Audit Trail"]
+```
+
+---
+
+## Live Deployments & Demo
+
+- **Live Web Dashboard (Vercel):** [https://ops-copilot-two.vercel.app](https://ops-copilot-two.vercel.app)
+- **Production API Backend (Render):** [https://ops-copilot-nspl.onrender.com](https://ops-copilot-nspl.onrender.com)
+- **Monitored Real Microservice:** [https://social-mcp.duckdns.org](https://social-mcp.duckdns.org)
+- **Product Demo Video (1080p MP4):** [assets/ops-copilot-demo-video.mp4](assets/ops-copilot-demo-video.mp4)
+- **Local Dev Server:** [http://localhost:5173](http://localhost:5173)
+
+---
+
+## 🚀 Quick Start & User Guide
+
+Users and developers can interact with Ops Co-pilot using either the **In-App WebMCP Console**, the **Native Browser WebMCP API**, or by **Registering Custom Microservices**:
+
+### Option 1: In-App WebMCP Console (Zero Setup ⭐)
+1. Open the live dashboard: [**https://ops-copilot-two.vercel.app**](https://ops-copilot-two.vercel.app)
+2. Click the **"WebMCP Agent Console"** tab.
+3. Select **`get_service_health`** and click **"Invoke WebMCP Tool"** $\rightarrow$ Instant live telemetry JSON is returned.
+4. Select **`restart_service`**, enter a reason (*"Testing WebMCP guardrail"*), and click **"Invoke WebMCP Tool"**.
+5. 👉 **The Guardrail in Action:** The backend responds with `HTTP 428 Precondition Required`, popping up the **Human Confirmation Dialog Modal** on your screen. Click **"Approve & Execute"** to authorize the action.
+6. Switch to the **"Audit Log"** tab to see the permanent, cryptographic audit record of the execution.
+
+### Option 2: Native Chrome WebMCP Testing API (`chrome://flags`)
+1. Enable WebMCP in Google Chrome by setting `chrome://flags/#enable-webmcp-testing` to **Enabled** and relaunching Chrome.
+2. Navigate to [**https://ops-copilot-two.vercel.app**](https://ops-copilot-two.vercel.app).
+3. Press **`F12`** to open the DevTools Console, and run:
+```javascript
+// 1. Discover all 7 registered WebMCP tools
+await navigator.modelContextTesting.listTools()
+
+// 2. Execute read-only telemetry inspection
+await navigator.modelContextTesting.executeTool("get_service_health", JSON.stringify({serviceId: "social-mcp"}))
+
+// 3. Trigger a high-risk mutation (triggers on-screen confirmation modal!)
+await navigator.modelContextTesting.executeTool("restart_service", JSON.stringify({serviceId: "social-mcp", reason: "Testing WebMCP guardrail flow"}))
+```
+
+### Option 3: Register Your Own Microservices via REST API 🔌
+Any developer can monitor their own microservice dynamically by issuing a single API call:
+```bash
+curl -X POST https://ops-copilot-nspl.onrender.com/api/services \
+  -H "Authorization: Bearer <API_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "my-service",
+    "name": "My Production Microservice",
+    "endpointUrl": "https://api.mycompany.com/health",
+    "controlApiUrl": "https://api.render.com/v1/services/srv-xxxxxx",
+    "controlApiKey": "rnd_xxxxxx",
+    "replicas": 1
+  }'
 ```
 
 ---
@@ -195,7 +196,7 @@ document.modelContext.registerTool({
 });
 ```
 
-### 4. `acknowledge_alert` (Low-Risk Action)
+### 4. `acknowledge_alert` (Low-Risk)
 ```javascript
 document.modelContext.registerTool({
   name: "acknowledge_alert",
@@ -220,7 +221,7 @@ document.modelContext.registerTool({
 });
 ```
 
-### 5. `add_incident_note` (Low-Risk Action)
+### 5. `add_incident_note` (Low-Risk)
 ```javascript
 document.modelContext.registerTool({
   name: "add_incident_note",
@@ -245,7 +246,7 @@ document.modelContext.registerTool({
 });
 ```
 
-### 6. `restart_service` (High-Risk Action — Human Guardrail Required)
+### 6. `restart_service` (High-Risk Guardrail)
 ```javascript
 document.modelContext.registerTool({
   name: "restart_service",
@@ -265,21 +266,15 @@ document.modelContext.registerTool({
     required: ["serviceId", "reason"]
   },
   execute: async (input) => {
-    // 1. Initial execution returns HTTP 428 Precondition Required with confirmation challenge
-    const initial = await api.executeAction(input.serviceId, "restart_service", {}, input.reason, undefined, "agent");
-    
-    if (initial.status === "confirmation_required" && initial.requiredConfirmation) {
-      // 2. UI prompts human operator to review rationale & approve
-      const confirmationToken = await promptHumanApproval(initial.requiredConfirmation);
-      // 3. Execution resumes with single-use cryptographic token
-      return await api.executeAction(input.serviceId, "restart_service", {}, input.reason, confirmationToken, "agent");
-    }
-    return initial;
+    // 1. Initial invocation returns HTTP 428 Precondition Required
+    // 2. Dashboard displays confirmation modal with AI rationale
+    // 3. Human approval returns single-use HMAC token (60s TTL)
+    // 4. Backend verifies token and triggers container deployment
   }
 });
 ```
 
-### 7. `scale_service` (High-Risk Action — Human Guardrail Required)
+### 7. `scale_service` (High-Risk Guardrail)
 ```javascript
 document.modelContext.registerTool({
   name: "scale_service",
@@ -303,96 +298,9 @@ document.modelContext.registerTool({
     required: ["serviceId", "replicas", "reason"]
   },
   execute: async (input) => {
-    const initial = await api.executeAction(input.serviceId, "scale_service", { replicas: input.replicas }, input.reason, undefined, "agent");
-    
-    if (initial.status === "confirmation_required" && initial.requiredConfirmation) {
-      const confirmationToken = await promptHumanApproval(initial.requiredConfirmation);
-      return await api.executeAction(input.serviceId, "scale_service", { replicas: input.replicas }, input.reason, confirmationToken, "agent");
-    }
-    return initial;
+    // Requires explicit human sign-off via on-screen dialog
   }
 });
-```
-
----
-
-## Local Setup Instructions
-
-### Prerequisites
-- **Go:** `v1.22+`
-- **Node.js:** `v18+`
-- **npm:** `v9+`
-
-### 1. Environment Configuration
-Copy the example environment file or configure `.env`:
-```bash
-cp .env.example .env
-```
-
-Key environment variables in `.env`:
-| Variable | Description | Default |
-|---|---|---|
-| `OPS_COPILOT_PORT` | Backend HTTP API listen port | `8080` |
-| `OPS_COPILOT_ENV` | Environment mode (`development`, `staging`, `production`) | `development` |
-| `OPS_COPILOT_DB_PATH` | Path to SQLite database file | `./data/opscopilot.db` |
-| `OPS_COPILOT_AUTH_SECRET` | Mandatory Bearer token / HMAC secret (minimum 32 chars) | `dev-secret-key-must-be-at-least-32-chars-long!` |
-| `OPS_COPILOT_TOKEN_TTL_SECONDS` | Confirmation token expiration window | `60` |
-| `OPS_COPILOT_RATE_LIMIT_RPS` | Token bucket refill rate (req/s) | `20` |
-| `OPS_COPILOT_RATE_LIMIT_BURST` | Token bucket burst capacity | `40` |
-| `OPS_COPILOT_ALLOWED_ORIGINS` | Strict CORS origin whitelist | `http://localhost:5173,http://127.0.0.1:5173` |
-
-### 2. Start Backend Server
-In your terminal, start the primary Go REST API and WebMCP server:
-```bash
-cd backend
-go run ./cmd/server/main.go
-```
-
-### 3. Start Frontend Dashboard
-In a separate terminal, install dependencies and launch the Vite dev server:
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Open [http://localhost:5173](http://localhost:5173) in your browser.
-
-### 4. Register Real Services
-You can register your real deployed services (Render, AWS, Kubernetes, custom Prometheus endpoints) directly via the authenticated API:
-
-```bash
-curl -X POST http://localhost:8080/api/services \
-  -H "Authorization: Bearer dev-secret-key-must-be-at-least-32-chars-long!" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "id": "my-production-service",
-    "name": "Production API Gateway",
-    "description": "Live production microservice",
-    "endpointUrl": "https://my-service.com/metrics",
-    "controlApiUrl": "https://my-service.com/control",
-    "controlApiKey": "secret-control-key",
-    "minReplicas": 1,
-    "maxReplicas": 10,
-    "replicas": 3
-  }'
-```
-
----
-
-## Running Verification Tests
-
-### Backend Unit & Integration Tests
-```bash
-cd backend
-go test -v ./...
-```
-
-### Frontend Typechecking & Linter
-```bash
-cd frontend
-npm run lint
-npm run build
 ```
 
 ---
