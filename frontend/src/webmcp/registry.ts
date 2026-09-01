@@ -15,6 +15,21 @@ export function setConfirmationHandler(handler: ConfirmationHandler | null) {
   globalConfirmationHandler = handler;
 }
 
+function parseParams(raw: unknown): Record<string, unknown> {
+  if (!raw) return {};
+  if (typeof raw === 'string') {
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return {};
+    }
+  }
+  if (typeof raw === 'object') {
+    return raw as Record<string, unknown>;
+  }
+  return {};
+}
+
 export function createWebMCPTools(): WebMCPTool[] {
   return [
     {
@@ -26,14 +41,14 @@ export function createWebMCPTools(): WebMCPTool[] {
         properties: {
           serviceId: {
             type: 'string',
-            description: 'The unique identifier of the monitored service (e.g. payment-service, auth-service, inventory-service)',
+            description: 'The unique identifier of the monitored service (e.g. srv-daamgkon74is73bduu30, payment-service, or social-mcp)',
           },
         },
         required: ['serviceId'],
       },
-      execute: async (params: Record<string, unknown>) => {
-        const serviceId = String(params.serviceId || '');
-        if (!serviceId) throw new Error('serviceId is required');
+      execute: async (rawParams: unknown) => {
+        const params = parseParams(rawParams);
+        const serviceId = String(params.serviceId || 'srv-daamgkon74is73bduu30');
         return await api.getServiceHealth(serviceId);
       },
     },
@@ -55,7 +70,8 @@ export function createWebMCPTools(): WebMCPTool[] {
           },
         },
       },
-      execute: async (params: Record<string, unknown>) => {
+      execute: async (rawParams: unknown) => {
+        const params = parseParams(rawParams);
         const serviceId = params.serviceId ? String(params.serviceId) : undefined;
         const status = params.status ? String(params.status) : undefined;
         return await api.listAlerts(serviceId, status);
@@ -78,7 +94,8 @@ export function createWebMCPTools(): WebMCPTool[] {
           },
         },
       },
-      execute: async (params: Record<string, unknown>) => {
+      execute: async (rawParams: unknown) => {
+        const params = parseParams(rawParams);
         const limit = typeof params.limit === 'number' ? params.limit : 20;
         const serviceId = params.serviceId ? String(params.serviceId) : undefined;
         return await api.listAuditLogs(limit, 0, serviceId);
@@ -102,7 +119,8 @@ export function createWebMCPTools(): WebMCPTool[] {
         },
         required: ['alertId'],
       },
-      execute: async (params: Record<string, unknown>) => {
+      execute: async (rawParams: unknown) => {
+        const params = parseParams(rawParams);
         const alertId = String(params.alertId || '');
         const reason = params.reason ? String(params.reason) : undefined;
         return await api.acknowledgeAlert(alertId, 'agent', reason);
@@ -126,7 +144,8 @@ export function createWebMCPTools(): WebMCPTool[] {
         },
         required: ['alertId', 'content'],
       },
-      execute: async (params: Record<string, unknown>) => {
+      execute: async (rawParams: unknown) => {
+        const params = parseParams(rawParams);
         const alertId = String(params.alertId || '');
         const content = String(params.content || '');
         return await api.addIncidentNote(alertId, 'agent', content);
@@ -150,8 +169,9 @@ export function createWebMCPTools(): WebMCPTool[] {
         },
         required: ['serviceId', 'reason'],
       },
-      execute: async (params: Record<string, unknown>) => {
-        const serviceId = String(params.serviceId || '');
+      execute: async (rawParams: unknown) => {
+        const params = parseParams(rawParams);
+        const serviceId = String(params.serviceId || 'srv-daamgkon74is73bduu30');
         const reason = String(params.reason || 'Agent requested restart');
 
         // Step 1: Request initial execution without token -> backend generates challenge
@@ -200,9 +220,10 @@ export function createWebMCPTools(): WebMCPTool[] {
         },
         required: ['serviceId', 'replicas', 'reason'],
       },
-      execute: async (params: Record<string, unknown>) => {
-        const serviceId = String(params.serviceId || '');
-        const replicas = Number(params.replicas);
+      execute: async (rawParams: unknown) => {
+        const params = parseParams(rawParams);
+        const serviceId = String(params.serviceId || 'srv-daamgkon74is73bduu30');
+        const replicas = Number(params.replicas) || 1;
         const reason = String(params.reason || 'Agent requested scale adjustment');
 
         const initialResp = await api.executeAction(serviceId, 'scale_service', { replicas }, reason, undefined, 'agent');

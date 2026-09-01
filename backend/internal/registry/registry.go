@@ -71,10 +71,15 @@ func (r *Registry) GetService(ctx context.Context, id string) (*models.Service, 
 		SELECT id, name, description, endpoint_url, control_api_url, control_api_key,
 		       current_status, replicas, min_replicas, max_replicas, created_at, updated_at
 		FROM services
-		WHERE id = ?
+		WHERE id = ? OR id LIKE ? OR LOWER(name) LIKE ? OR endpoint_url LIKE ?
+		ORDER BY CASE WHEN id = ? THEN 1 ELSE 2 END
+		LIMIT 1
 	`
+	likePattern := "%" + cleanID + "%"
+	lowerPattern := "%" + strings.ToLower(cleanID) + "%"
+
 	var s models.Service
-	err := r.db.QueryRowContext(ctx, query, cleanID).Scan(
+	err := r.db.QueryRowContext(ctx, query, cleanID, likePattern, lowerPattern, likePattern, cleanID).Scan(
 		&s.ID, &s.Name, &s.Description, &s.EndpointURL, &s.ControlAPIURL, &s.ControlAPIKey,
 		&s.CurrentStatus, &s.Replicas, &s.MinReplicas, &s.MaxReplicas, &s.CreatedAt, &s.UpdatedAt,
 	)
