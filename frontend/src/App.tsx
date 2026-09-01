@@ -5,8 +5,7 @@ import {
   RefreshCw,
   Server,
   Shield,
-  CheckCircle2,
-  AlertCircle,
+  Plus,
 } from 'lucide-react';
 import type { Service, ServiceHealth, Alert, AuditEntry } from './types';
 import { api } from './services/api';
@@ -20,6 +19,7 @@ import { AlertsPanel } from './components/alerts-panel';
 import { AuditPanel } from './components/audit-panel';
 import { AgentPlayground } from './components/agent-playground';
 import { ConfirmDialog } from './components/confirm-dialog';
+import { RegisterServiceDialog } from './components/register-service-dialog';
 
 export function App() {
   const [services, setServices] = useState<Service[]>([]);
@@ -29,6 +29,7 @@ export function App() {
   const [auditTotal, setAuditTotal] = useState<number>(0);
   const [activeTab, setActiveTab] = useState<'overview' | 'agent-console' | 'alerts' | 'audit'>('overview');
   const [pendingConfirmation, setPendingConfirmation] = useState<PendingConfirmationRequest | null>(null);
+  const [isRegisterModalOpen, setIsRegisterModalOpen] = useState<boolean>(false);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -213,38 +214,38 @@ export function App() {
     }
   };
 
-  const firingAlerts = alerts.filter((a: Alert) => a.status === 'firing');
-  const degradedServices = services.filter((s: Service) => {
-    const h = healthMap[s.id];
-    return h?.status === 'degraded' || h?.status === 'down' || h?.status === 'unhealthy';
-  });
+  // Delete / Remove Service from monitoring
+  const handleDeleteService = async (serviceId: string) => {
+    try {
+      await api.deleteService(serviceId);
+      showNotification('success', 'Service removed from active monitoring');
+      refreshData();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to remove service';
+      showNotification('error', msg);
+    }
+  };
 
-  const isAllHealthy = degradedServices.length === 0 && firingAlerts.length === 0;
+  const firingAlerts = alerts.filter((a: Alert) => a.status === 'firing');
 
   return (
-    <div className="min-h-screen bg-white text-[#1D1D1F] pb-16">
-      {/* 2-Second Hero Status Banner */}
-      <div
-        className={`border-b transition-colors px-4 py-2.5 text-xs font-semibold flex items-center justify-between gap-4 ${
-          isAllHealthy
-            ? 'bg-[#EAF9EE] border-[#B6E8C2] text-[#248A3D]'
-            : 'bg-[#FFF6E8] border-[#FFE1B0] text-[#B26B00]'
-        }`}
-      >
-        <div className="max-w-7xl mx-auto w-full flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {isAllHealthy ? (
+    <div className="min-h-screen bg-[#F5F5F7] text-[#1D1D1F] font-sans antialiased selection:bg-[#0071E3] selection:text-white">
+      {/* Top Telemetry Sync Bar */}
+      <div className="border-b border-[#D2D2D7] bg-[#F5F5F7] px-4 py-1.5 text-xs text-[#86868B]">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="flex items-center gap-1.5 font-medium text-[#1D1D1F]">
+              <span className="w-2 h-2 rounded-full bg-[#34C759] animate-pulse" />
+              Production Control Plane
+            </span>
+            <span className="text-[#D2D2D7]">|</span>
+            <span className="font-mono text-[11px]">{services.length} Monitored Service{services.length !== 1 ? 's' : ''}</span>
+            {firingAlerts.length > 0 && (
               <>
-                <CheckCircle2 className="w-4 h-4 text-[#34C759]" />
-                <span>All systems operational — {services.length} services healthy, 0 active alerts</span>
-              </>
-            ) : (
-              <>
-                <AlertCircle className="w-4 h-4 text-[#FF9F0A]" />
-                <span>
-                  {degradedServices.length > 0
-                    ? `${degradedServices.length} service requires attention: ${degradedServices.map((s) => s.name).join(', ')}`
-                    : `${firingAlerts.length} active incident alert firing`}
+                <span className="text-[#D2D2D7]">|</span>
+                <span className="font-semibold text-[#FF3B30] flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3" />
+                  {firingAlerts.length} Firing Alert{firingAlerts.length !== 1 ? 's' : ''}
                 </span>
               </>
             )}
@@ -331,8 +332,17 @@ export function App() {
             </button>
           </div>
 
-          {/* Refresh Action */}
+          {/* Actions */}
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsRegisterModalOpen(true)}
+              className="px-3 py-2 rounded-xl bg-[#0071E3] hover:bg-[#0077ED] text-white text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Add Service</span>
+            </button>
+
             <button
               type="button"
               onClick={refreshData}
@@ -371,17 +381,52 @@ export function App() {
         {/* Tab 1: Overview */}
         {activeTab === 'overview' && (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {services.map((svc: Service) => (
-                <ServiceCard
-                  key={svc.id}
-                  service={svc}
-                  health={healthMap[svc.id]}
-                  onRestart={handleRestartService}
-                  onScale={handleScaleService}
-                />
-              ))}
+            {/* Fleet Header */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-bold text-[#1D1D1F]">Monitored Fleet</h2>
+                <p className="text-xs text-[#6E6E73]">
+                  {services.length} live service{services.length !== 1 ? 's' : ''} currently streaming telemetry & exposed via WebMCP
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsRegisterModalOpen(true)}
+                className="px-3.5 py-1.5 rounded-xl border border-[#D2D2D7] bg-white hover:bg-[#F5F5F7] text-[#1D1D1F] text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+              >
+                <Plus className="w-3.5 h-3.5 text-[#0071E3]" />
+                Register New Service
+              </button>
             </div>
+
+            {services.length === 0 ? (
+              <div className="p-12 text-center bg-white rounded-2xl border border-dashed border-[#D2D2D7]">
+                <Server className="w-8 h-8 text-[#86868B] mx-auto mb-2" />
+                <h3 className="text-sm font-semibold text-[#1D1D1F]">No Services Registered</h3>
+                <p className="text-xs text-[#6E6E73] mb-4">Add your microservice, backend API, or MCP server to start live observability.</p>
+                <button
+                  type="button"
+                  onClick={() => setIsRegisterModalOpen(true)}
+                  className="px-4 py-2 rounded-xl bg-[#0071E3] text-white text-xs font-semibold hover:bg-[#0077ED] cursor-pointer"
+                >
+                  + Add Service Now
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {services.map((svc: Service) => (
+                  <ServiceCard
+                    key={svc.id}
+                    service={svc}
+                    health={healthMap[svc.id]}
+                    onRestart={handleRestartService}
+                    onScale={handleScaleService}
+                    onDelete={handleDeleteService}
+                  />
+                ))}
+              </div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
               <AlertsPanel
@@ -438,6 +483,16 @@ export function App() {
           }}
         />
       )}
+
+      {/* Dynamic Service Registration Modal */}
+      <RegisterServiceDialog
+        isOpen={isRegisterModalOpen}
+        onClose={() => setIsRegisterModalOpen(false)}
+        onSuccess={() => {
+          showNotification('success', 'New service registered successfully');
+          refreshData();
+        }}
+      />
     </div>
   );
 }

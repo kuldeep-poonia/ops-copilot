@@ -146,29 +146,22 @@ func Load() (*Config, error) {
 		AuthServiceKey:       getEnvOrDefault("OPS_COPILOT_SERVICE_AUTH_API_KEY", "dev-auth-key"),
 		InventoryKey:         getEnvOrDefault("OPS_COPILOT_SERVICE_INVENTORY_API_KEY", "dev-inventory-key"),
 		AllowedOrigins:       allowedOrigins,
-		RenderAPIKey:         getEnvOrDefault("RENDER_API_KEY", "rnd_KxuVZhRnLMCHZgEJcnSa1dUc9OJE"),
+		RenderAPIKey:         os.Getenv("RENDER_API_KEY"),
 		RenderServiceID:      resolveMonitoredServiceID(),
-		MonitoredServiceURL:  getEnvOrDefault("MONITORED_SERVICE_URL", "https://social-mcp.duckdns.org"),
-		MonitoredServiceName: getEnvOrDefault("MONITORED_SERVICE_NAME", "Social Publishing MCP Server"),
+		MonitoredServiceURL:  os.Getenv("MONITORED_SERVICE_URL"),
+		MonitoredServiceName: getEnvOrDefault("MONITORED_SERVICE_NAME", "Monitored Microservice"),
 	}
 
 	return cfg, nil
 }
 
 func resolveMonitoredServiceID() string {
-	// If explicitly set via OPS_COPILOT_MONITORED_RENDER_SERVICE_ID or MONITORED_RENDER_SERVICE_ID
-	for _, key := range []string{"OPS_COPILOT_MONITORED_RENDER_SERVICE_ID", "MONITORED_RENDER_SERVICE_ID"} {
+	for _, key := range []string{"MONITORED_RENDER_SERVICE_ID", "OPS_COPILOT_MONITORED_RENDER_SERVICE_ID", "RENDER_SERVICE_ID"} {
 		if val := strings.TrimSpace(os.Getenv(key)); val != "" {
 			return val
 		}
 	}
-	val := strings.TrimSpace(os.Getenv("RENDER_SERVICE_ID"))
-	// On Render, RENDER_SERVICE_ID is auto-set to the hosting app itself (srv-daamgkon74is73bduu30).
-	// If it matches that or is empty, use the monitored service srv-da76eg0ae00c73ar5vr0.
-	if val == "" || val == "srv-daamgkon74is73bduu30" {
-		return "srv-da76eg0ae00c73ar5vr0"
-	}
-	return val
+	return ""
 }
 
 func getEnvOrDefault(key, fallback string) string {

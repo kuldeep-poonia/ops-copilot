@@ -6,6 +6,7 @@ export interface Service {
   description: string;
   endpointUrl: string;
   controlApiUrl: string;
+  controlApiKey?: string;
   currentStatus: ServiceStatus;
   replicas: number;
   minReplicas: number;

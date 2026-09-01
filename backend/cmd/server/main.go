@@ -41,18 +41,18 @@ func main() {
 
 	reg := registry.NewRegistry(db)
 	if cfg.MonitoredServiceURL != "" {
-		serviceID := "srv-da76eg0ae00c73ar5vr0"
+		serviceID := "monitored-service"
 		if cfg.RenderServiceID != "" {
 			serviceID = cfg.RenderServiceID
 		}
 		controlURL := fmt.Sprintf("https://api.render.com/v1/services/%s", serviceID)
+		if cfg.RenderServiceID == "" {
+			controlURL = strings.TrimSuffix(cfg.MonitoredServiceURL, "/") + "/control"
+		}
 		name := cfg.MonitoredServiceName
 		if name == "" {
-			name = "Social Publishing MCP Server"
+			name = "Monitored Microservice"
 		}
-		// Clean up any legacy self-referencing entries in SQLite DB
-		_, _ = db.ExecContext(ctx, "DELETE FROM services WHERE id = 'srv-daamgkon74is73bduu30' OR id = 'default'")
-
 		err := reg.RegisterService(ctx, models.Service{
 			ID:            serviceID,
 			Name:          name,

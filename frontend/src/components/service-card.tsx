@@ -8,6 +8,7 @@ import {
   Layers,
   AlertCircle,
   Sliders,
+  Trash2,
 } from 'lucide-react';
 import type { Service, ServiceHealth } from '../types';
 
@@ -16,6 +17,7 @@ interface ServiceCardProps {
   health?: ServiceHealth;
   onRestart: (serviceId: string) => void;
   onScale: (serviceId: string, replicas: number) => void;
+  onDelete?: (serviceId: string) => void;
 }
 
 export const ServiceCard: React.FC<ServiceCardProps> = ({
@@ -23,6 +25,7 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({
   health,
   onRestart,
   onScale,
+  onDelete,
 }) => {
   const [scaleValue, setScaleValue] = useState<number>(service.replicas);
   const [showScaleModal, setShowScaleModal] = useState<boolean>(false);
@@ -214,6 +217,21 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({
           <Sliders className="w-3.5 h-3.5 text-[#6E6E73]" />
           Scale ({service.replicas})
         </button>
+
+        {onDelete && (
+          <button
+            type="button"
+            onClick={() => {
+              if (window.confirm(`Are you sure you want to remove "${service.name}" from active monitoring?`)) {
+                onDelete(service.id);
+              }
+            }}
+            className="p-2 rounded-xl bg-[#F5F5F7] hover:bg-[#FFF0EF] text-[#86868B] hover:text-[#FF3B30] border border-[#D2D2D7] transition-colors cursor-pointer"
+            title="Remove Service from Fleet"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
 
       {/* Inline Scale Controller */}

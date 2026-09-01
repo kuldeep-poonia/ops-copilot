@@ -49,6 +49,19 @@ export const api = {
     return data.services || [];
   },
 
+  async registerService(service: Partial<Service>): Promise<{ status: string; service: Service }> {
+    return fetchJSON<{ status: string; service: Service }>(`${API_BASE}/services`, {
+      method: 'POST',
+      body: JSON.stringify(service),
+    });
+  },
+
+  async deleteService(serviceId: string): Promise<{ status: string; serviceId: string }> {
+    return fetchJSON<{ status: string; serviceId: string }>(`${API_BASE}/services/${serviceId}`, {
+      method: 'DELETE',
+    });
+  },
+
   async getServiceHealth(serviceId: string): Promise<ServiceHealth> {
     return fetchJSON<ServiceHealth>(`${API_BASE}/services/${serviceId}/health`);
   },
