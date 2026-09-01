@@ -7,7 +7,7 @@ import type {
   ActionExecutionResponse,
 } from '../types';
 
-const AUTH_SECRET = import.meta.env.VITE_AUTH_SECRET || 'fDgc79JLz99saSejHavvaRF5oHttczyX6KBxNmjzw8U=';
+const AUTH_SECRET = (import.meta.env.VITE_AUTH_SECRET || '').trim();
 
 function getApiBases(): string[] {
   const bases: string[] = [];
@@ -37,14 +37,19 @@ async function fetchJSON<T>(path: string, options?: RequestInit): Promise<T> {
   for (let i = 0; i < bases.length; i++) {
     const url = `${bases[i]}${cleanPath}`;
     try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'X-Session-ID': 'ops-web-session',
+        ...(options?.headers as Record<string, string> || {}),
+      };
+
+      if (AUTH_SECRET) {
+        headers['Authorization'] = `Bearer ${AUTH_SECRET}`;
+      }
+
       const response = await fetch(url, {
         ...options,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${AUTH_SECRET}`,
-          'X-Session-ID': 'ops-web-session',
-          ...(options?.headers || {}),
-        },
+        headers,
       });
 
       if (response.status === 428) {
