@@ -79,17 +79,28 @@ flowchart TD
 
 ## 🚀 Quick Start & User Guide
 
-Users and developers can interact with Ops Co-pilot using either the **In-App WebMCP Console**, the **Native Browser WebMCP API**, or by **Registering Custom Microservices**:
+Users and developers can interact with Ops Co-pilot using either the **1-Click UI Service Connector**, the **In-App WebMCP Console**, or the **Native Browser WebMCP API**:
 
-### Option 1: In-App WebMCP Console (Zero Setup ⭐)
+### Option 1: 1-Click Magic URL Registration (Instant Setup ⚡)
 1. Open the live dashboard: [**https://ops-copilot-two.vercel.app**](https://ops-copilot-two.vercel.app)
-2. Click the **"WebMCP Agent Console"** tab.
-3. Select **`get_service_health`** and click **"Invoke WebMCP Tool"** $\rightarrow$ Instant live telemetry JSON is returned.
-4. Select **`restart_service`**, enter a reason (*"Testing WebMCP guardrail"*), and click **"Invoke WebMCP Tool"**.
-5. 👉 **The Guardrail in Action:** The backend responds with `HTTP 428 Precondition Required`, popping up the **Human Confirmation Dialog Modal** on your screen. Click **"Approve & Execute"** to authorize the action.
-6. Switch to the **"Audit Log"** tab to see the permanent, cryptographic audit record of the execution.
+2. Click the **"+ Add Service"** button in the top navigation bar.
+3. Paste any live microservice or MCP server URL (e.g. `https://social-mcp.duckdns.org` or `https://api.yourdomain.com`).
+4. 👉 **Smart Auto-Detection:** The system automatically extracts the service name, provisions a unique service identifier, and configures Prometheus `/metrics` and control endpoints.
+5. Click **"Connect & Monitor"** — the service will immediately start streaming real-time telemetry and appear in the WebMCP agent fleet.
+6. *(Optional)* Click the **Trash / Delete 🗑️ icon** on any service card to decommission it from the fleet.
 
-### Option 2: Native Chrome WebMCP Testing API (`chrome://flags`)
+---
+
+### Option 2: In-App WebMCP Console (Zero Setup ⭐)
+1. On the dashboard [**https://ops-copilot-two.vercel.app**](https://ops-copilot-two.vercel.app), click the **"WebMCP Agent Console"** tab.
+2. Select **`get_service_health`** and click **"Invoke WebMCP Tool"** $\rightarrow$ Instant live telemetry JSON is returned autonomously without human interruption.
+3. Select **`restart_service`**, enter a reason (*"Testing WebMCP guardrail"*), and click **"Invoke WebMCP Tool"**.
+4. 👉 **The Guardrail in Action:** The backend intercepts with `HTTP 428 Precondition Required`, displaying the **Human Confirmation Dialog Modal**. Click **"Approve & Execute"** to authorize the action.
+5. Switch to the **"Audit Log"** tab to see the permanent, cryptographic audit record of the execution.
+
+---
+
+### Option 3: Native Chrome WebMCP Testing API (`chrome://flags`)
 1. Enable WebMCP in Google Chrome by setting `chrome://flags/#enable-webmcp-testing` to **Enabled** and relaunching Chrome.
 2. Navigate to [**https://ops-copilot-two.vercel.app**](https://ops-copilot-two.vercel.app).
 3. Press **`F12`** to open the DevTools Console, and run:
@@ -97,25 +108,26 @@ Users and developers can interact with Ops Co-pilot using either the **In-App We
 // 1. Discover all 7 registered WebMCP tools
 await navigator.modelContextTesting.listTools()
 
-// 2. Execute read-only telemetry inspection
+// 2. Execute read-only telemetry inspection (Autonomous)
 await navigator.modelContextTesting.executeTool("get_service_health", JSON.stringify({serviceId: "social-mcp"}))
 
-// 3. Trigger a high-risk mutation (triggers on-screen confirmation modal!)
+// 3. Trigger a high-risk mutation (Intercepted by HTTP 428 guardrail modal!)
 await navigator.modelContextTesting.executeTool("restart_service", JSON.stringify({serviceId: "social-mcp", reason: "Testing WebMCP guardrail flow"}))
 ```
 
-### Option 3: Register Your Own Microservices via REST API 🔌
-Any developer can monitor their own microservice dynamically by issuing a single API call:
+---
+
+### Option 4: Register Custom Services via REST API 🔌
+Developers can also register services programmatically via HTTP REST API:
 ```bash
 curl -X POST https://ops-copilot-nspl.onrender.com/api/services \
-  -H "Authorization: Bearer <API_TOKEN>" \
+  -H "X-Session-ID: ops-web-session" \
   -H "Content-Type: application/json" \
   -d '{
     "id": "my-service",
     "name": "My Production Microservice",
-    "endpointUrl": "https://api.mycompany.com/health",
+    "endpointUrl": "https://api.mycompany.com/metrics",
     "controlApiUrl": "https://api.render.com/v1/services/srv-xxxxxx",
-    "controlApiKey": "rnd_xxxxxx",
     "replicas": 1
   }'
 ```
