@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, X, Server, Activity, ShieldCheck, AlertCircle } from 'lucide-react';
+import { Plus, X, Globe, ChevronDown, ChevronUp, Sparkles, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { api } from '../services/api';
 import type { Service } from '../types';
 
@@ -14,50 +14,87 @@ export const RegisterServiceDialog: React.FC<RegisterServiceDialogProps> = ({
   onClose,
   onSuccess,
 }) => {
-  const [name, setName] = useState('');
-  const [serviceId, setServiceId] = useState('');
-  const [description, setDescription] = useState('');
-  const [endpointUrl, setEndpointUrl] = useState('');
-  const [controlApiUrl, setControlApiUrl] = useState('');
-  const [controlApiKey, setControlApiKey] = useState('');
-  const [minReplicas, setMinReplicas] = useState(1);
-  const [maxReplicas, setMaxReplicas] = useState(5);
+  const [urlInput, setUrlInput] = useState('');
+  const [customName, setCustomName] = useState('');
+  const [customId, setCustomId] = useState('');
+  const [customControlUrl, setCustomControlUrl] = useState('');
+  const [customApiKey, setCustomApiKey] = useState('');
   const [replicas, setReplicas] = useState(1);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
+  // Auto-detect service properties from URL
+  const autoDetectService = (rawUrl: string) => {
+    let clean = rawUrl.trim();
+    if (!clean) return { name: '', id: '', metricsUrl: '', controlUrl: '' };
+    if (!clean.startsWith('http://') && !clean.startsWith('https://')) {
+      clean = 'https://' + clean;
+    }
+    clean = clean.replace(/\/+$/, '');
+
+    try {
+      const parsed = new URL(clean);
+      const host = parsed.hostname;
+      const sub = host.split('.')[0] || 'service';
+      const formattedName = sub
+        .split(/[-_]/)
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ') + (sub.includes('mcp') ? '' : ' Service');
+
+      const id = sub.toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 32);
+      const metricsUrl = clean.endsWith('/metrics') ? clean : `${clean}/metrics`;
+      const controlUrl = `${clean}/control`;
+
+      return { name: formattedName, id, metricsUrl, controlUrl, rawUrl: clean };
+    } catch {
+      return { name: clean, id: 'custom-svc', metricsUrl: clean, controlUrl: clean, rawUrl: clean };
+    }
+  };
+
+  const detected = autoDetectService(urlInput);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !endpointUrl.trim()) {
-      setErrorMsg('Service Name and Endpoint Metrics URL are required.');
+    if (!urlInput.trim()) {
+      setErrorMsg('Please enter or paste a valid service URL.');
       return;
     }
 
     setIsSubmitting(true);
     setErrorMsg(null);
 
-    const cleanId = serviceId.trim() || name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').slice(0, 32);
+    const targetUrl = detected.rawUrl;
+    const finalName = customName.trim() || detected.name || 'Monitored Service';
+    const finalId = customId.trim() || detected.id || 'service-' + Date.now().toString().slice(-4);
+    const finalMetricsUrl = detected.metricsUrl;
+    const finalControlUrl = customControlUrl.trim() || detected.controlUrl;
 
     try {
       const resp = await api.registerService({
-        id: cleanId,
-        name: name.trim(),
-        description: description.trim() || `Monitored microservice at ${endpointUrl.trim()}`,
-        endpointUrl: endpointUrl.trim(),
-        controlApiUrl: controlApiUrl.trim() || `${endpointUrl.trim()}/control`,
-        controlApiKey: controlApiKey.trim(),
+        id: finalId,
+        name: finalName,
+        description: `Live microservice auto-connected from ${targetUrl}`,
+        endpointUrl: finalMetricsUrl,
+        controlApiUrl: finalControlUrl,
+        controlApiKey: customApiKey.trim(),
         currentStatus: 'healthy',
-        replicas,
-        minReplicas,
-        maxReplicas,
+        replicas: replicas || 1,
+        minReplicas: 1,
+        maxReplicas: 10,
       });
 
       onSuccess(resp.service);
       onClose();
+      setUrlInput('');
+      setCustomName('');
+      setCustomId('');
+      setCustomControlUrl('');
+      setCustomApiKey('');
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to register service';
+      const msg = err instanceof Error ? err.message : 'Failed to connect service';
       setErrorMsg(msg);
     } finally {
       setIsSubmitting(false);
@@ -67,15 +104,15 @@ export const RegisterServiceDialog: React.FC<RegisterServiceDialogProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
       <div className="bg-white rounded-2xl max-w-lg w-full border border-[#D2D2D7] shadow-2xl overflow-hidden animate-scale-up">
-        {/* Modal Header */}
+        {/* Header */}
         <div className="px-6 py-4 border-b border-[#E5E5EA] flex items-center justify-between bg-[#F5F5F7]">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-[#EBF4FF] border border-[#BCD9FF] flex items-center justify-center text-[#0071E3]">
-              <Plus className="w-4 h-4" />
+              <Sparkles className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-[#1D1D1F]">Register New Infrastructure Service</h3>
-              <p className="text-[11px] text-[#6E6E73]">Add any live service or MCP server into Ops Co-pilot</p>
+              <h3 className="text-sm font-semibold text-[#1D1D1F]">Connect New Service via URL</h3>
+              <p className="text-[11px] text-[#6E6E73]">Paste URL to start instant real-time telemetry monitoring</p>
             </div>
           </div>
           <button
@@ -87,7 +124,7 @@ export const RegisterServiceDialog: React.FC<RegisterServiceDialogProps> = ({
           </button>
         </div>
 
-        {/* Modal Form */}
+        {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4 text-xs">
           {errorMsg && (
             <div className="p-3 rounded-xl bg-[#FFF2F2] border border-[#FFD2D2] text-[#FF3B30] flex items-center gap-2">
@@ -96,139 +133,113 @@ export const RegisterServiceDialog: React.FC<RegisterServiceDialogProps> = ({
             </div>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block font-medium text-[#1D1D1F] mb-1">
-                Service Name <span className="text-[#FF3B30]">*</span>
-              </label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => {
-                  setName(e.target.value);
-                  if (!serviceId) {
-                    setServiceId(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 32));
-                  }
-                }}
-                placeholder="e.g. Payments Gateway"
-                required
-                className="w-full px-3 py-2 rounded-xl border border-[#D2D2D7] bg-white text-[#1D1D1F] focus:outline-none focus:border-[#0071E3] focus:ring-1 focus:ring-[#0071E3]"
-              />
-            </div>
-
-            <div>
-              <label className="block font-medium text-[#1D1D1F] mb-1">
-                Service ID (Unique Key)
-              </label>
-              <input
-                type="text"
-                value={serviceId}
-                onChange={(e) => setServiceId(e.target.value)}
-                placeholder="e.g. srv-payments-01"
-                className="w-full px-3 py-2 rounded-xl border border-[#D2D2D7] bg-white text-[#1D1D1F] focus:outline-none focus:border-[#0071E3] focus:ring-1 focus:ring-[#0071E3]"
-              />
-            </div>
-          </div>
-
+          {/* Single URL Input */}
           <div>
-            <label className="block font-medium text-[#1D1D1F] mb-1">
-              Description
-            </label>
-            <input
-              type="text"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="e.g. Core transaction processing microservice"
-              className="w-full px-3 py-2 rounded-xl border border-[#D2D2D7] bg-white text-[#1D1D1F] focus:outline-none focus:border-[#0071E3] focus:ring-1 focus:ring-[#0071E3]"
-            />
-          </div>
-
-          <div>
-            <label className="block font-medium text-[#1D1D1F] mb-1">
-              Metrics Endpoint URL <span className="text-[#FF3B30]">*</span>
+            <label className="block font-semibold text-[#1D1D1F] mb-1.5 text-xs">
+              Service or MCP Server URL
             </label>
             <div className="relative">
               <input
-                type="url"
-                value={endpointUrl}
-                onChange={(e) => setEndpointUrl(e.target.value)}
-                placeholder="https://api.yourdomain.com/metrics"
+                type="text"
+                autoFocus
+                value={urlInput}
+                onChange={(e) => setUrlInput(e.target.value)}
+                placeholder="https://social-mcp.duckdns.org or https://api.yoursite.com"
                 required
-                className="w-full pl-8 pr-3 py-2 rounded-xl border border-[#D2D2D7] bg-white text-[#1D1D1F] focus:outline-none focus:border-[#0071E3] focus:ring-1 focus:ring-[#0071E3]"
+                className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-[#D2D2D7] bg-white text-[#1D1D1F] text-xs font-mono placeholder:font-sans focus:outline-none focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20"
               />
-              <Activity className="w-4 h-4 text-[#86868B] absolute left-2.5 top-2.5" />
+              <Globe className="w-4 h-4 text-[#86868B] absolute left-3 top-3" />
             </div>
-            <p className="text-[10px] text-[#86868B] mt-1">Accepts Prometheus, OpenTelemetry, or JSON health metric payloads.</p>
+            <p className="text-[11px] text-[#86868B] mt-1.5">
+              Supports any HTTP API, Prometheus metrics, Node.js/Go/Python service, or Render deployment.
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block font-medium text-[#1D1D1F] mb-1">
-                Control API URL (Restart/Scale)
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={controlApiUrl}
-                  onChange={(e) => setControlApiUrl(e.target.value)}
-                  placeholder="https://api.render.com/v1/services/srv-..."
-                  className="w-full pl-8 pr-3 py-2 rounded-xl border border-[#D2D2D7] bg-white text-[#1D1D1F] focus:outline-none focus:border-[#0071E3] focus:ring-1 focus:ring-[#0071E3]"
-                />
-                <Server className="w-4 h-4 text-[#86868B] absolute left-2.5 top-2.5" />
+          {/* Live Auto-Detection Pill */}
+          {urlInput.trim().length > 3 && (
+            <div className="p-3.5 rounded-xl bg-[#F5F5F7] border border-[#E5E5EA] space-y-2 animate-fade-in">
+              <div className="flex items-center gap-1.5 text-[#34C759] font-medium text-[11px]">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>Auto-Configured Ready to Stream</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-[11px]">
+                <div className="bg-white p-2 rounded-lg border border-[#E5E5EA]">
+                  <span className="text-[#86868B] block text-[10px]">Detected Name</span>
+                  <span className="font-semibold text-[#1D1D1F] truncate block">
+                    {customName || detected.name}
+                  </span>
+                </div>
+                <div className="bg-white p-2 rounded-lg border border-[#E5E5EA]">
+                  <span className="text-[#86868B] block text-[10px]">Service ID</span>
+                  <span className="font-mono text-[#1D1D1F] truncate block">
+                    {customId || detected.id}
+                  </span>
+                </div>
               </div>
             </div>
+          )}
 
-            <div>
-              <label className="block font-medium text-[#1D1D1F] mb-1">
-                Control API Key / Bearer
-              </label>
-              <div className="relative">
-                <input
-                  type="password"
-                  value={controlApiKey}
-                  onChange={(e) => setControlApiKey(e.target.value)}
-                  placeholder="API Token (if required)"
-                  className="w-full pl-8 pr-3 py-2 rounded-xl border border-[#D2D2D7] bg-white text-[#1D1D1F] focus:outline-none focus:border-[#0071E3] focus:ring-1 focus:ring-[#0071E3]"
-                />
-                <ShieldCheck className="w-4 h-4 text-[#86868B] absolute left-2.5 top-2.5" />
+          {/* Collapsible Advanced Settings */}
+          <div className="pt-1">
+            <button
+              type="button"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="text-[11px] text-[#0071E3] hover:underline flex items-center gap-1 cursor-pointer font-medium"
+            >
+              {showAdvanced ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              {showAdvanced ? 'Hide Advanced Configuration' : 'Customize Name, API Key or Replicas (Optional)'}
+            </button>
+
+            {showAdvanced && (
+              <div className="mt-3 p-4 rounded-xl bg-[#F5F5F7] border border-[#E5E5EA] space-y-3 animate-fade-in">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-medium text-[#1D1D1F] mb-1">Custom Display Name</label>
+                    <input
+                      type="text"
+                      value={customName}
+                      onChange={(e) => setCustomName(e.target.value)}
+                      placeholder={detected.name || 'e.g. Social Publishing API'}
+                      className="w-full px-2.5 py-1.5 rounded-lg border border-[#D2D2D7] bg-white text-[#1D1D1F] text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-medium text-[#1D1D1F] mb-1">Custom Service ID</label>
+                    <input
+                      type="text"
+                      value={customId}
+                      onChange={(e) => setCustomId(e.target.value)}
+                      placeholder={detected.id || 'e.g. social-mcp'}
+                      className="w-full px-2.5 py-1.5 rounded-lg border border-[#D2D2D7] bg-white text-[#1D1D1F] text-xs font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-medium text-[#1D1D1F] mb-1">Control API Key / Bearer</label>
+                    <input
+                      type="password"
+                      value={customApiKey}
+                      onChange={(e) => setCustomApiKey(e.target.value)}
+                      placeholder="Optional API Secret"
+                      className="w-full px-2.5 py-1.5 rounded-lg border border-[#D2D2D7] bg-white text-[#1D1D1F] text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-medium text-[#1D1D1F] mb-1">Initial Replicas</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={20}
+                      value={replicas}
+                      onChange={(e) => setReplicas(Number(e.target.value))}
+                      className="w-full px-2.5 py-1.5 rounded-lg border border-[#D2D2D7] bg-white text-[#1D1D1F] text-xs"
+                    />
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="block font-medium text-[#1D1D1F] mb-1">Replicas</label>
-              <input
-                type="number"
-                min={1}
-                max={50}
-                value={replicas}
-                onChange={(e) => setReplicas(Number(e.target.value))}
-                className="w-full px-3 py-2 rounded-xl border border-[#D2D2D7] bg-white text-[#1D1D1F]"
-              />
-            </div>
-            <div>
-              <label className="block font-medium text-[#1D1D1F] mb-1">Min Replicas</label>
-              <input
-                type="number"
-                min={1}
-                max={50}
-                value={minReplicas}
-                onChange={(e) => setMinReplicas(Number(e.target.value))}
-                className="w-full px-3 py-2 rounded-xl border border-[#D2D2D7] bg-white text-[#1D1D1F]"
-              />
-            </div>
-            <div>
-              <label className="block font-medium text-[#1D1D1F] mb-1">Max Replicas</label>
-              <input
-                type="number"
-                min={1}
-                max={50}
-                value={maxReplicas}
-                onChange={(e) => setMaxReplicas(Number(e.target.value))}
-                className="w-full px-3 py-2 rounded-xl border border-[#D2D2D7] bg-white text-[#1D1D1F]"
-              />
-            </div>
+            )}
           </div>
 
           {/* Modal Actions */}
@@ -242,11 +253,11 @@ export const RegisterServiceDialog: React.FC<RegisterServiceDialogProps> = ({
             </button>
             <button
               type="submit"
-              disabled={isSubmitting}
-              className="px-4 py-2 rounded-xl bg-[#0071E3] hover:bg-[#0077ED] text-white font-medium shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              disabled={isSubmitting || !urlInput.trim()}
+              className="px-5 py-2 rounded-xl bg-[#0071E3] hover:bg-[#0077ED] text-white font-semibold shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
             >
               <Plus className="w-3.5 h-3.5" />
-              {isSubmitting ? 'Registering...' : 'Register Service'}
+              {isSubmitting ? 'Connecting...' : 'Connect & Monitor'}
             </button>
           </div>
         </form>
