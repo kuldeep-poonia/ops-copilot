@@ -16,7 +16,53 @@ Ops Co-pilot doesn't add its own AI — it gives any AI agent already in your br
 - **Live Dashboard (Vercel):** [https://ops-copilot-two.vercel.app](https://ops-copilot-two.vercel.app)
 - **Production API (Render):** [https://ops-copilot-nspl.onrender.com](https://ops-copilot-nspl.onrender.com)
 - **Monitored Service:** [https://social-mcp.duckdns.org](https://social-mcp.duckdns.org)
+- **Demo Video (1080p MP4):** [assets/ops-copilot-demo-video.mp4](assets/ops-copilot-demo-video.mp4)
 - **Local Dev URL:** [http://localhost:5173](http://localhost:5173)
+
+---
+
+## 🧪 Quick Test & Judge Evaluation Guide (1-Minute Walkthrough)
+
+Judges and developers can evaluate Ops Co-pilot using either the **In-App WebMCP Console** (zero setup) or the **Native Chrome WebMCP Testing API**:
+
+### Option 1: In-App WebMCP Playground (Zero Setup ⭐)
+1. Open the live dashboard: [**https://ops-copilot-two.vercel.app**](https://ops-copilot-two.vercel.app)
+2. Click the **"WebMCP Agent Console"** tab.
+3. Select **`get_service_health`** and click **"Invoke WebMCP Tool"** $\rightarrow$ Instant live telemetry JSON is returned.
+4. Select **`restart_service`**, enter a reason (*"Testing WebMCP guardrail"*), and click **"Invoke WebMCP Tool"**.
+5. 👉 **The Guardrail in Action:** The backend responds with `HTTP 428 Precondition Required`, popping up the **Human Confirmation Dialog Modal** on your screen. Click **"Approve & Execute"** to authorize the action.
+6. Switch to the **"Audit Log"** tab to see the permanent, cryptographic audit record of the execution.
+
+### Option 2: Native Chrome WebMCP Testing API (`chrome://flags`)
+1. Enable WebMCP in Google Chrome by setting `chrome://flags/#enable-webmcp-testing` to **Enabled** and relaunching Chrome.
+2. Navigate to [**https://ops-copilot-two.vercel.app**](https://ops-copilot-two.vercel.app).
+3. Press **`F12`** to open the DevTools Console, and run:
+```javascript
+// 1. Discover all 7 registered WebMCP tools
+await navigator.modelContextTesting.listTools()
+
+// 2. Execute read-only telemetry inspection
+await navigator.modelContextTesting.executeTool("get_service_health", JSON.stringify({serviceId: "social-mcp"}))
+
+// 3. Trigger a high-risk mutation (triggers on-screen confirmation modal!)
+await navigator.modelContextTesting.executeTool("restart_service", JSON.stringify({serviceId: "social-mcp", reason: "Testing WebMCP guardrail flow"}))
+```
+
+### Option 3: Register Your Own Custom Service via REST API 🔌
+Any developer can monitor their own microservice dynamically by issuing a single API call:
+```bash
+curl -X POST https://ops-copilot-nspl.onrender.com/api/services \
+  -H "Authorization: Bearer <API_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "my-service",
+    "name": "My Production Microservice",
+    "endpointUrl": "https://api.mycompany.com/health",
+    "controlApiUrl": "https://api.render.com/v1/services/srv-xxxxxx",
+    "controlApiKey": "rnd_xxxxxx",
+    "replicas": 1
+  }'
+```
 
 ---
 
