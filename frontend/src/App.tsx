@@ -489,6 +489,7 @@ export function App() {
         isOpen={isRegisterModalOpen}
         onClose={() => setIsRegisterModalOpen(false)}
         onSuccess={() => {
+          setIsRegisterModalOpen(false);
           showNotification('success', 'New service registered successfully');
           refreshData();
         }}
