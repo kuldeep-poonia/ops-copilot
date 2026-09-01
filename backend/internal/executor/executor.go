@@ -195,8 +195,8 @@ func (e *Executor) executeRestartService(ctx context.Context, req models.ActionE
 		}, nil
 	}
 
-	// Validate and consume single-use token
-	if err := e.guardrail.ValidateAndConsumeToken(ctx, req.ConfirmationToken, req.ServiceID, req.ActionType, req.Parameters); err != nil {
+	// Validate and consume single-use token against canonical service.ID
+	if err := e.guardrail.ValidateAndConsumeToken(ctx, req.ConfirmationToken, service.ID, req.ActionType, req.Parameters); err != nil {
 		errMsg := err.Error()
 		_ = e.auditLogger.Record(ctx, models.AuditEntry{
 			Actor:        req.Initiator,
@@ -340,8 +340,8 @@ func (e *Executor) executeScaleService(ctx context.Context, req models.ActionExe
 		}, nil
 	}
 
-	// Validate and consume single-use token
-	if err := e.guardrail.ValidateAndConsumeToken(ctx, req.ConfirmationToken, req.ServiceID, req.ActionType, req.Parameters); err != nil {
+	// Validate and consume single-use token against canonical service.ID
+	if err := e.guardrail.ValidateAndConsumeToken(ctx, req.ConfirmationToken, service.ID, req.ActionType, req.Parameters); err != nil {
 		errMsg := err.Error()
 		_ = e.auditLogger.Record(ctx, models.AuditEntry{
 			Actor:        req.Initiator,

@@ -192,7 +192,8 @@ export function createWebMCPTools(): WebMCPTool[] {
           });
 
           // Step 3: Execute with verified single-use token
-          return await api.executeAction(serviceId, 'restart_service', {}, reason, token, 'agent');
+          const targetServiceId = initialResp.requiredConfirmation.serviceId || serviceId;
+          return await api.executeAction(targetServiceId, 'restart_service', {}, reason, token, 'agent');
         }
 
         return initialResp;
@@ -241,7 +242,8 @@ export function createWebMCPTools(): WebMCPTool[] {
             });
           });
 
-          return await api.executeAction(serviceId, 'scale_service', { replicas }, reason, token, 'agent');
+          const targetServiceId = initialResp.requiredConfirmation.serviceId || serviceId;
+          return await api.executeAction(targetServiceId, 'scale_service', { replicas }, reason, token, 'agent');
         }
 
         return initialResp;

@@ -426,8 +426,16 @@ export function App() {
       {pendingConfirmation && (
         <ConfirmDialog
           challenge={pendingConfirmation.challenge}
-          onApprove={pendingConfirmation.onApprove}
-          onReject={pendingConfirmation.onReject}
+          onApprove={(token) => {
+            const cb = pendingConfirmation.onApprove;
+            setPendingConfirmation(null);
+            cb(token);
+          }}
+          onReject={() => {
+            const cb = pendingConfirmation.onReject;
+            setPendingConfirmation(null);
+            cb();
+          }}
         />
       )}
     </div>
